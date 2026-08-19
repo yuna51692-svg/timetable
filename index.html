@@ -780,6 +780,7 @@ function rowEl(r,i,o,dk){
 
   var body=document.createElement("div"); body.className="lbody";
   var head=document.createElement("div"); head.className="lhead";
+  var isDuty=S.duties.indexOf(r.cls)>=0;
 
   var sc=document.createElement("select"); sc.className="sel-cls";
   fillClassSelect(sc,r.cls,"학급 없음",classesFor(dk));
@@ -805,7 +806,9 @@ function rowEl(r,i,o,dk){
     var sw=document.createElement("span"); sw.className="pill warn"; sw.textContent="↔ 교환";
     head.appendChild(sw);
   }
-  head.append(sc,sg,sp);
+  head.append(sc);
+  if(!isDuty) head.appendChild(sg);
+  head.appendChild(sp);
 
   var tags=document.createElement("div"); tags.className="tags";
   [["보강","sup"],["결손","del"]].forEach(function(pair){
@@ -836,7 +839,8 @@ function rowEl(r,i,o,dk){
     });
   };
 
-  body.append(head,sl);
+  body.appendChild(head);
+  if(!isDuty) body.appendChild(sl);
   var prev=(r.cls&&r.grade!==ETC)?lastEntry(r.cls,r.grade,dk,i):null;
   if(prev){
     var pv=document.createElement("div"); pv.className="prev";
@@ -847,11 +851,13 @@ function rowEl(r,i,o,dk){
   }
 
   var nt=document.createElement("textarea"); nt.className="note"; nt.rows=1; nt.value=r.note||"";
-  nt.placeholder="어디까지 했는지 메모 (예: 28번 문풀, 전기1까지)";
+  nt.placeholder=isDuty?"메모 (예: 안건, 처리한 업무, 준비물)":"어디까지 했는지 메모 (예: 28번 문풀, 전기1까지)";
   nt.oninput=function(){ r.note=nt.value; touch(o); save(); };
   body.appendChild(nt);
 
-  if(!list.length&&r.grade!==ETC){
+  if(isDuty){
+    /* 일정 행은 일정 이름이 곧 내용이므로 차시 선택이 필요 없음 */
+  }else if(!list.length&&r.grade!==ETC){
     var w=document.createElement("div"); w.className="hint"; w.style.margin="0";
     w.textContent="설정에서 "+r.grade+"학년 차시 목록을 먼저 등록해주세요.";
     body.appendChild(w);
