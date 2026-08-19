@@ -368,7 +368,7 @@ table.wk td{padding:0;vertical-align:top;height:1px}
 
     <div class="card">
       <div class="chead"><h2>차시 목록</h2><button class="btn-reset" id="rs-lesson">이 탭 비우기</button></div>
-      <p class="hint">한 줄에 하나씩, 수업하는 순서대로 적어주세요. 교과서 목차가 아니라 <b>실제로 나누는 수업 단위</b>로 적으시면 됩니다. <b>학년별·학기별로 따로 저장됩니다.</b> 학기가 바뀌면 그 학기 1차시부터 다시 제안되니, 학기마다 그 학기 진도만 적으시면 됩니다. <b>기타</b> 탭은 학기 구분 없이 공통이고, 회의·업무·개인 일정처럼 수업이 아닌 것을 넣으세요.</p>
+      <p class="hint">한 줄에 하나씩, 수업하는 순서대로 적어주세요. <b>앞에 번호는 붙이지 마세요.</b> 왼쪽 번호는 앱이 자동으로 매기고, 수업 기록에서 고를 때도 번호가 함께 표시됩니다. 직접 번호를 적으시면 차시를 지우거나 순서를 바꿀 때마다 번호를 다시 손봐야 합니다. 교과서 목차가 아니라 <b>실제로 나누는 수업 단위</b>로 적으시면 됩니다. <b>학년별·학기별로 따로 저장됩니다.</b> 학기가 바뀌면 그 학기 1차시부터 다시 제안되니, 학기마다 그 학기 진도만 적으시면 됩니다. <b>기타</b> 탭은 학기 구분 없이 공통이고, 회의·업무·개인 일정처럼 수업이 아닌 것을 넣으세요.</p>
       <div class="gtabs" id="ltabs"></div>
       <div class="gtabs" id="gtabs"></div>
       <ol class="ll" id="ll"></ol>
@@ -377,7 +377,7 @@ table.wk td{padding:0;vertical-align:top;height:1px}
         <button class="btn" id="lbulk">여러 줄 붙여넣기</button>
       </div>
       <div id="bulkbox" class="hide" style="margin-top:12px">
-        <textarea id="bulkin" rows="7" placeholder="1. 기권의 층상 구조&#10;2. 복사 평형&#10;3. 온실 효과와 지구 온난화"></textarea>
+        <textarea id="bulkin" rows="7" placeholder="기권의 층상 구조&#10;복사 평형&#10;온실 효과와 지구 온난화&#10;(한 줄에 하나씩, 번호 없이)"></textarea>
         <div class="row-flex" style="margin-top:8px">
           <button class="btn btn-g" id="bulkok">목록에 추가</button>
           <button class="btn" id="bulkno">취소</button>
@@ -543,6 +543,10 @@ function slotList(){
   return out.filter(function(v,i,a){ return a.indexOf(v)===i; });
 }
 function lessonsOf(g){ if(!S.lessons[g]) S.lessons[g]=[]; return S.lessons[g]; }
+function numbered(list,val){
+  var i=list.indexOf(val);
+  return i<0?val:(i+1)+". "+val;
+}
 function lessonsFor(dk,g){
   if(g===ETC) return lessonsOf(ETC);
   var t=termOf(dk);
@@ -591,12 +595,44 @@ function lastEntry(cls,g,dk,stopAt){
   });
   return hit;
 }
+var PROJ=null;
+function dparse(k){ var a=String(k).split("-"); return new Date(+a[0],+a[1]-1,+a[2]); }
+function projection(){
+  if(PROJ) return PROJ;
+  var out={};
+  var ranges=[];
+  if(S.terms.length){
+    S.terms.forEach(function(t){ if(t.from&&t.to) ranges.push([t.from,t.to]); });
+  }else{
+    var ks=Object.keys(S.days).sort();
+    if(ks.length) ranges.push([ks[0],ks[ks.length-1]]);
+  }
+  ranges.forEach(function(rg){
+    var d=dparse(rg[0]), end=dparse(rg[1]), map={}, guard=0;
+    while(d<=end&&guard++<800){
+      var k=iso(d), o=peekDay(k,d);
+      if(o.status==="normal"){
+        (o.rows||[]).forEach(function(r,i){
+          if(!r.cls||r.grade===ETC||r.tag==="del") return;
+          var list=lessonsFor(k,r.grade); if(!list.length) return;
+          var key=r.cls+"|"+r.grade;
+          if(r.lesson){
+            var known=list.indexOf(r.lesson);
+            if(known>=0) map[key]=known;
+            return;
+          }
+          var next=(map[key]===undefined?-1:map[key])+1;
+          if(next<list.length){ out[k+"#"+i]=list[next]; map[key]=next; }
+        });
+      }
+      d.setDate(d.getDate()+1);
+    }
+  });
+  PROJ=out; return out;
+}
 function suggest(cls,g,dk,stopAt){
   if(g===ETC||!cls) return "";
-  var list=lessonsFor(dk,g); if(!list.length) return "";
-  var e=lastEntry(cls,g,dk,stopAt);
-  var i=(e?e.idx:-1)+1;
-  return i<list.length?list[i]:"";
+  return projection()[dk+"#"+stopAt]||"";
 }
 
 function termOf(dk){
@@ -699,6 +735,7 @@ function handleDirect(sel,prev,label,apply){
 }
 
 function renderDay(){
+  PROJ=null;
   var dk=iso(cur), o=dayOf(dk,cur);
   document.getElementById("dpick").value=dk;
   document.getElementById("dtitle").innerHTML=(cur.getMonth()+1)+"월 "+cur.getDate()+"일 <em>"+DAYS[cur.getDay()]+"</em>";
@@ -781,11 +818,11 @@ function rowEl(r,i,o,dk){
 
   var body=document.createElement("div"); body.className="lbody";
   var head=document.createElement("div"); head.className="lhead";
-  var isDuty=S.duties.indexOf(r.cls)>=0;
+  var isDuty=(r.grade===ETC&&!!r.cls);
 
   var sc=document.createElement("select"); sc.className="sel-cls";
   fillClassSelect(sc,r.cls,"학급 없음",classesFor(dk));
-  if(S.duties.indexOf(r.cls)>=0) sc.classList.add("duty");
+  if(r.grade===ETC&&r.cls) sc.classList.add("duty");
   sc.onchange=function(){
     handleDirect(sc,r.cls,"학급을 입력하세요 (예: 2-7)",function(v){
       r.cls=v; r.grade=gradeOf(v); r.lesson=""; r.ok=false; touch(o); save(); renderDay();
@@ -832,7 +869,15 @@ function rowEl(r,i,o,dk){
   var sl=document.createElement("select"); sl.className="sel-lesson";
   var list=lessonsFor(dk,r.grade);
   var sug=(!r.ok&&r.tag!=="del")?suggest(r.cls,r.grade,dk,i):"";
-  fillSelect(sl,list,r.lesson||sug,"— 내용 선택 —");
+  (function(){
+    var pick=r.lesson||sug;
+    sl.innerHTML="";
+    sl.add(new Option("— 내용 선택 —",""));
+    list.forEach(function(t,idx){ sl.add(new Option((idx+1)+". "+t,t)); });
+    if(pick&&list.indexOf(pick)<0) sl.add(new Option(pick,pick));
+    sl.add(new Option("직접 입력…",DIRECT));
+    sl.value=pick||"";
+  })();
   if(!r.lesson&&sug) sl.classList.add("sug");
   sl.onchange=function(){
     handleDirect(sl,r.lesson,"내용을 직접 입력하세요",function(v){
@@ -845,7 +890,7 @@ function rowEl(r,i,o,dk){
   var prev=(r.cls&&r.grade!==ETC)?lastEntry(r.cls,r.grade,dk,i):null;
   if(prev){
     var pv=document.createElement("div"); pv.className="prev";
-    pv.innerHTML="<span>지난 시간</span> "+esc(prev.lesson)
+    pv.innerHTML="<span>지난 시간</span> "+esc(numbered(lessonsFor(dk,r.grade),prev.lesson))
       +(prev.note?' <em>'+esc(prev.note)+'</em>':"")
       +' <b>'+prev.date.slice(5).replace("-","/")+'</b>';
     body.appendChild(pv);
@@ -1167,6 +1212,7 @@ function peekDay(dk,d){
   return o;
 }
 function renderCal(){
+  PROJ=null;
   document.getElementById("mtitle").textContent=calM.getFullYear()+"년 "+(calM.getMonth()+1)+"월";
   var grid=document.getElementById("cal"); grid.innerHTML="";
   var first=new Date(calM.getFullYear(),calM.getMonth(),1);
@@ -1212,6 +1258,7 @@ function cellEl(d,todayK){
       var sp=document.createElement("span");
       var txt=r.lesson||"";
       if(!txt){ var g=suggest(r.cls,r.grade,dk,i); txt=g||"미입력"; ln.classList.add("pend"); }
+      if(txt&&txt!=="미입력") txt=numbered(lessonsFor(dk,r.grade),txt);
       else if(!r.ok) ln.classList.add("pend");
       sp.textContent=(r.cls?r.cls+" ":"")+txt+(r.note?" · "+r.note.split("\n")[0]:"");
       ln.append(b,sp); body.appendChild(ln); shown++;
@@ -1229,6 +1276,7 @@ function cellEl(d,todayK){
 var wkStart=null;
 function mondayOf(d){ var x=new Date(d.getFullYear(),d.getMonth(),d.getDate()); var g=(x.getDay()+6)%7; x.setDate(x.getDate()-g); return x; }
 function renderWeek(){
+  PROJ=null;
   if(!wkStart) wkStart=mondayOf(cur);
   var days=[];
   for(var i=0;i<5;i++) days.push(new Date(wkStart.getFullYear(),wkStart.getMonth(),wkStart.getDate()+i));
@@ -1273,7 +1321,7 @@ function weekCell(d,p){
     var ln=document.createElement("div"); ln.className="wrow";
     if(r.grade===ETC) ln.classList.add("duty");
     if(r.tag==="del") ln.classList.add("del");
-    ln.innerHTML="<b>"+esc(r.cls||"")+"</b>"+(r.lesson?" <i>"+esc(r.lesson)+"</i>":"")
+    ln.innerHTML="<b>"+esc(r.cls||"")+"</b>"+(r.lesson?" <i>"+esc(numbered(lessonsFor(dk,r.grade),r.lesson))+"</i>":"")
       +(r.note?"<br><u>"+esc(r.note)+"</u>":"");
     el.appendChild(ln);
   });
