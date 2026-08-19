@@ -174,21 +174,22 @@ ol.ll li:last-child{border-bottom:0}
 .cd.vac .dnum{color:var(--faint)}
 
 .wkwrap{overflow-x:auto;margin:0 -4px;padding:0 4px}
-table.wk{border-collapse:separate;border-spacing:4px;min-width:820px;width:100%}
+table.wk{border-collapse:separate;border-spacing:4px;min-width:820px;width:100%;table-layout:fixed}
 table.wk th{font-size:12px;font-weight:600;color:var(--muted);padding:3px}
 table.wk th.d{font-size:13px;color:var(--ink)}
 table.wk th.d em{font-style:normal;color:var(--faint);font-weight:500;font-size:11px}
-table.wk td{padding:0;vertical-align:top}
-.wcell{background:#FBFBF9;border:1px solid var(--line);border-radius:8px;padding:6px;min-height:40px;
-  width:100%;text-align:left;display:flex;flex-direction:column;gap:3px}
+table.wk td{padding:0;vertical-align:top;height:1px}
+.wcell{background:#FBFBF9;border:1px solid var(--line);border-radius:8px;padding:6px;min-height:44px;
+  width:100%;height:100%;text-align:left;display:flex;flex-direction:column;gap:3px;
+  font-family:inherit;color:inherit}
 .wcell:hover{border-color:var(--green-line);background:var(--surface)}
-.wrow{font-size:11.5px;line-height:1.4}
+.wrow{font-size:11.5px;line-height:1.45;overflow-wrap:anywhere;word-break:break-word}
 .wrow b{color:var(--green);font-weight:700}
 .wrow.duty b{color:var(--amber)}
 .wrow.del{opacity:.5;text-decoration:line-through}
 .wrow i{font-style:normal;color:var(--muted)}
 .wrow u{text-decoration:none;color:var(--amber);font-size:11px}
-.wslot{font-size:11px;color:var(--faint);font-weight:600;text-align:center;width:52px}
+.wslot{font-size:11px;color:var(--faint);font-weight:600;text-align:center;width:56px}
 
 /* ---------- calendar ---------- */
 .calbar{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap}
