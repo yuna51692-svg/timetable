@@ -368,7 +368,7 @@ table.wk td{padding:0;vertical-align:top;height:1px}
 
     <div class="card">
       <div class="chead"><h2>차시 목록</h2><button class="btn-reset" id="rs-lesson">이 탭 비우기</button></div>
-      <p class="hint">한 줄에 하나씩, 수업하는 순서대로 적어주세요. <b>앞에 번호는 붙이지 마세요.</b> 왼쪽 번호는 앱이 자동으로 매기고, 수업 기록에서 고를 때도 번호가 함께 표시됩니다. 직접 번호를 적으시면 차시를 지우거나 순서를 바꿀 때마다 번호를 다시 손봐야 합니다. 교과서 목차가 아니라 <b>실제로 나누는 수업 단위</b>로 적으시면 됩니다. <b>학년별·학기별로 따로 저장됩니다.</b> 학기가 바뀌면 그 학기 1차시부터 다시 제안되니, 학기마다 그 학기 진도만 적으시면 됩니다. <b>기타</b> 탭은 학기 구분 없이 공통이고, 회의·업무·개인 일정처럼 수업이 아닌 것을 넣으세요.</p>
+      <p class="hint">한 줄에 하나씩, 수업하는 순서대로 적어주세요. <b>앞에 번호는 붙이지 마세요.</b> 왼쪽 번호는 앱이 자동으로 매기고, 수업 기록에서 고를 때도 번호가 함께 표시됩니다. 직접 번호를 적으시면 차시를 지우거나 순서를 바꿀 때마다 번호를 다시 손봐야 합니다. 교과서 목차가 아니라 <b>실제로 나누는 수업 단위</b>로 적으시면 됩니다. <b>학년별·학기별로 따로 저장됩니다.</b> 학기가 바뀌면 그 학기 1차시부터 다시 제안되니, 학기마다 그 학기 진도만 적으시면 됩니다. 회의·출장처럼 수업이 아닌 일정은 <b>수업 외 고정 일정</b>에 넣으시면 됩니다.</p>
       <div class="gtabs" id="ltabs"></div>
       <div class="gtabs" id="gtabs"></div>
       <ol class="ll" id="ll"></ol>
@@ -405,7 +405,7 @@ table.wk td{padding:0;vertical-align:top;height:1px}
 <script>
 "use strict";
 var DAYS=["일","월","화","수","목","금","토"];
-var GRADES=["1","2","3","기타"];
+var GRADES=["1","2","3"];
 var KEY="jindo.v2";
 var ETC="기타";
 var DIRECT="__direct__";
@@ -506,10 +506,6 @@ function normalize(){
     (S.days[k].rows||[]).forEach(function(r){ r.period=String(r.period); });
   });
   if(!S.terms[S.tsel]) S.tsel=0;
-  if(!S.seeded&&!(S.lessons[ETC]||[]).length){
-    S.lessons[ETC]=["교직원 회의","학년 협의회","업무 처리","출장","연수","개인 일정"];
-    S.seeded=true;
-  }
 }
 function esc(t){ return String(t==null?"":t).replace(/[&<>"]/g,function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]; }); }
 function iso(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
@@ -548,13 +544,12 @@ function numbered(list,val){
   return i<0?val:(i+1)+". "+val;
 }
 function lessonsFor(dk,g){
-  if(g===ETC) return lessonsOf(ETC);
+  if(g===ETC) return [];
   var t=termOf(dk);
   if(t){ t.lessons=t.lessons||{}; if(!t.lessons[g]) t.lessons[g]=[]; return t.lessons[g]; }
   return S.terms.length?[]:lessonsOf(g);
 }
 function editLessons(){
-  if(S.gsel===ETC) return lessonsOf(ETC);
   if(!S.terms.length) return lessonsOf(S.gsel);
   var t=S.terms[S.tsel]||S.terms[0]; t.lessons=t.lessons||{};
   if(!t.lessons[S.gsel]) t.lessons[S.gsel]=[];
@@ -818,7 +813,7 @@ function rowEl(r,i,o,dk){
 
   var body=document.createElement("div"); body.className="lbody";
   var head=document.createElement("div"); head.className="lhead";
-  var isDuty=(r.grade===ETC&&!!r.cls);
+  var isDuty=(r.grade===ETC);
 
   var sc=document.createElement("select"); sc.className="sel-cls";
   fillClassSelect(sc,r.cls,"학급 없음",classesFor(dk));
@@ -830,8 +825,8 @@ function rowEl(r,i,o,dk){
   };
 
   var sg=document.createElement("select");
-  GRADES.forEach(function(g){ sg.add(new Option(g===ETC?ETC:g+"학년",g)); });
-  sg.value=GRADES.indexOf(r.grade)>=0?r.grade:ETC;
+  GRADES.forEach(function(g){ sg.add(new Option(g+"학년",g)); });
+  sg.value=GRADES.indexOf(r.grade)>=0?r.grade:"1";
   sg.onchange=function(){ r.grade=sg.value; r.lesson=""; r.ok=false; touch(o); save(); renderDay(); };
 
   var sp=document.createElement("select"); sp.className="sel-place";
@@ -1066,13 +1061,12 @@ function renderLessons(){
   if(GRADES.indexOf(S.gsel)<0) S.gsel="1";
   var tb=document.getElementById("gtabs"); tb.innerHTML="";
   GRADES.forEach(function(g){
-    var b=document.createElement("button"); b.className="gtab"; b.textContent=(g===ETC?ETC:g+"학년");
+    var b=document.createElement("button"); b.className="gtab"; b.textContent=g+"학년";
     b.setAttribute("aria-selected",g===S.gsel);
     b.onclick=function(){ S.gsel=g; renderLessons(); };
     tb.appendChild(b);
   });
   termTabs("ltabs");
-  document.getElementById("ltabs").classList.toggle("hide",S.gsel===ETC);
   var list=editLessons(), ol=document.getElementById("ll"); ol.innerHTML="";
   if(!list.length){ ol.innerHTML='<li><span class="empty" style="flex:1">항목을 추가해주세요.</span></li>'; return; }
   list.forEach(function(t,i){
@@ -1256,11 +1250,13 @@ function cellEl(d,todayK){
       var b=document.createElement("b"); b.textContent=r.period;
       if(!isNum(r.period)) b.style.color="var(--violet)";
       var sp=document.createElement("span");
+      var isD=(r.grade===ETC&&!!r.cls);
       var txt=r.lesson||"";
-      if(!txt){ var g=suggest(r.cls,r.grade,dk,i); txt=g||"미입력"; ln.classList.add("pend"); }
+      if(!isD&&!txt){ var g=suggest(r.cls,r.grade,dk,i); txt=g||"미입력"; ln.classList.add("pend"); }
       if(txt&&txt!=="미입력") txt=numbered(lessonsFor(dk,r.grade),txt);
-      else if(!r.ok) ln.classList.add("pend");
-      sp.textContent=(r.cls?r.cls+" ":"")+txt+(r.note?" · "+r.note.split("\n")[0]:"");
+      else if(!isD&&!r.ok) ln.classList.add("pend");
+      var head=(r.cls||"")+(txt?((r.cls?" ":"")+txt):"");
+      sp.textContent=head+(r.note?" · "+r.note.split("\n")[0]:"");
       ln.append(b,sp); body.appendChild(ln); shown++;
     }
     if(!rows.length&&!(o.memos||[]).some(function(m){ return m&&m.trim(); })) el.classList.add("blank");
@@ -1452,7 +1448,7 @@ document.getElementById("rs-tt").onclick=function(){
   save(); renderTT(); renderDay();
 };
 document.getElementById("rs-lesson").onclick=function(){
-  var list=editLessons(), nm=(S.gsel===ETC?ETC:S.gsel+"학년");
+  var list=editLessons(), nm=S.gsel+"학년";
   if(!list.length) return alert("이미 비어 있습니다.");
   if(!ask(nm+" 차시 "+list.length+"개를 지웁니다.\n이미 기록해둔 수업 내용은 그대로 남지만, 다음 차시 제안은 다시 계산됩니다.")) return;
   list.length=0; save(); renderLessons(); renderDay();
@@ -1461,7 +1457,7 @@ document.getElementById("rs-setup").onclick=function(){
   if(!ask("학급·장소·학사일정·시간표·차시 목록을 모두 비웁니다.\n수업 기록은 그대로 남습니다.")) return;
   S.classes=[]; S.places=[]; S.terms=[]; S.tsel=0; S.tt={}; S.lessons={}; S.gsel="1"; S.seeded=false;
   S.duties=["담임시간","기획회의","동아리","창의적 체험활동"]; S.plans=[];
-  load2Seed(); save(); renderSetup(); renderDay();
+  save(); renderSetup(); renderDay();
 };
 document.getElementById("rs-days").onclick=function(){
   var n=Object.keys(S.days).length;
@@ -1470,12 +1466,6 @@ document.getElementById("rs-days").onclick=function(){
   if(!confirm("정말 지울까요? 마지막 확인입니다.")) return;
   S.days={}; save(); renderDay();
 };
-function load2Seed(){
-  if(!(S.lessons[ETC]||[]).length){
-    S.lessons[ETC]=["교직원 회의","학년 협의회","업무 처리","출장","연수","개인 일정"];
-    S.seeded=true;
-  }
-}
 
 var pc=document.getElementById("pcount");
 for(var i=4;i<=9;i++) pc.add(new Option(i+"교시",i));
