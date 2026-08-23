@@ -1,3 +1,12 @@
+<!--
+  ======================================================
+  진도표 — 교사를 위한 수업 진도·업무 일정 관리 웹앱
+  Author: 민세중학교 허유나 (yuna51692@gmail.com)
+  Repository: https://github.com/yuna51692-svg/timetable
+  License: MIT License (자세한 조건은 저장소의 LICENSE 파일 참고)
+  자유롭게 고쳐 쓰셔도 됩니다. 다만 위 저작자 표시는 지우지 말고 남겨주세요.
+  ======================================================
+-->
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -630,15 +639,15 @@ function stamp(){
   var t=new Date();
   setStatus("저장됨 "+String(t.getHours()).padStart(2,"0")+":"+String(t.getMinutes()).padStart(2,"0"));
 }
-var APP_VER="1.1";
+var APP_VER="1.2";
 var APP_DATE="2026-08-23";
-var APP_LOG="담당 과목별 관리(고등학교 지원), 교시 1~12, 요일 범위 선택, 쉬는 날·시험·행사에도 교시 추가";
+var APP_LOG="새 버전 업데이트 알림 기능 점검 (연습용 버전, 기능 변경 없음)";
 
 /* 새 버전이 나왔는지 조용히 확인합니다. 실패해도 앱 사용에는 지장이 없습니다. */
 var VERSION_URL="https://raw.githubusercontent.com/yuna51692-svg/timetable/main/version.json";
 function checkUpdate(){
   if(sessionStorage.getItem("updDismissed")) return; /* 이번 방문에서 이미 닫았으면 다시 안 뜸 */
-  fetch(VERSION_URL,{cache:"no-store"})
+  fetch(VERSION_URL+"?t="+Date.now(),{cache:"no-store"}) /* 깃허브 CDN이 5분간 캐시하므로, 매번 다른 주소로 요청해 우회합니다 */
     .then(function(r){ return r.json(); })
     .then(function(info){
       if(!info||!info.latest) return;
