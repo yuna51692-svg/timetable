@@ -363,6 +363,26 @@ table.wk td.nowcol .wcell,table.wk td.nowcol .wmemo{border-color:var(--green);bo
   .wslot{width:44px}
   table.wk{min-width:700px}
 }
+.updbar{display:none;align-items:center;gap:10px;background:#FFF6E0;border-bottom:1px solid #E8D9A8;
+  padding:9px 16px;font-size:13px;color:#6B5620;flex-wrap:wrap}
+.updbar.show{display:flex}
+.updbar b{color:#4A3A10}
+.updbar .sp{flex:1}
+.updbar button{border:1px solid #C9AE5C;background:#fff;border-radius:7px;padding:5px 12px;
+  font-size:12.5px;font-weight:700;color:#6B5620}
+.updbar button.primary{background:#6B5620;color:#fff;border-color:#6B5620}
+.updmodal{position:fixed;inset:0;background:rgba(30,28,20,.45);z-index:50;display:none;
+  align-items:center;justify-content:center;padding:20px}
+.updmodal.show{display:flex}
+.updcard{background:#fff;border-radius:16px;max-width:420px;width:100%;padding:22px;
+  box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.updcard h3{margin:0 0 10px;font-size:17px}
+.updcard p{margin:0 0 16px;font-size:13.5px;line-height:1.6;color:var(--muted)}
+.updcard .row{display:flex;gap:8px;justify-content:flex-end}
+.updcard a.btn-dl{background:var(--ink);color:#fff;border-radius:8px;padding:8px 14px;
+  font-size:13px;font-weight:700;text-decoration:none}
+.updcard button.btn-close{border:1px solid var(--line);background:#fff;border-radius:8px;
+  padding:8px 14px;font-size:13px;color:var(--muted)}
 </style>
 </head>
 <body>
@@ -388,6 +408,23 @@ table.wk td.nowcol .wcell,table.wk td.nowcol .wmemo{border-color:var(--green);bo
     <div class="saved" id="saved"></div>
   </div>
 </header>
+
+<div class="updbar" id="updbar">
+  <span>🔔 새 버전이 있어요 <b id="updver"></b></span>
+  <span class="sp"></span>
+  <button id="updmore">무엇이 바뀌었나요?</button>
+  <button id="upddismiss">나중에</button>
+</div>
+<div class="updmodal" id="updmodal">
+  <div class="updcard">
+    <h3>새 버전 안내</h3>
+    <p id="updnote"></p>
+    <div class="row">
+      <button class="btn-close" id="updclose">닫기</button>
+      <a class="btn-dl" id="updlink" href="#" target="_blank" rel="noopener">새 파일 받으러 가기</a>
+    </div>
+  </div>
+</div>
 
 <main>
   <section id="view-cal" class="hide" style="order:2">
@@ -596,6 +633,30 @@ function stamp(){
 var APP_VER="1.1";
 var APP_DATE="2026-08-23";
 var APP_LOG="담당 과목별 관리(고등학교 지원), 교시 1~12, 요일 범위 선택, 쉬는 날·시험·행사에도 교시 추가";
+
+/* 새 버전이 나왔는지 조용히 확인합니다. 실패해도 앱 사용에는 지장이 없습니다. */
+var VERSION_URL="https://raw.githubusercontent.com/yuna51692-svg/timetable/main/version.json";
+function checkUpdate(){
+  if(sessionStorage.getItem("updDismissed")) return; /* 이번 방문에서 이미 닫았으면 다시 안 뜸 */
+  fetch(VERSION_URL,{cache:"no-store"})
+    .then(function(r){ return r.json(); })
+    .then(function(info){
+      if(!info||!info.latest) return;
+      if(String(info.latest)===String(APP_VER)) return; /* 최신이면 조용히 종료 */
+      var bar=document.getElementById("updbar");
+      document.getElementById("updver").textContent="v"+info.latest;
+      document.getElementById("updnote").textContent=info.note||"";
+      var link=document.getElementById("updlink");
+      link.href=info.fileUrl||"https://github.com/yuna51692-svg/timetable";
+      bar.classList.add("show");
+      document.getElementById("updmore").onclick=function(){ document.getElementById("updmodal").classList.add("show"); };
+      document.getElementById("updclose").onclick=function(){ document.getElementById("updmodal").classList.remove("show"); };
+      document.getElementById("upddismiss").onclick=function(){
+        bar.classList.remove("show"); sessionStorage.setItem("updDismissed","1");
+      };
+    })
+    .catch(function(){ /* 네트워크 문제 등은 조용히 무시 */ });
+}
 var APP_MAKER="허유나";
 var APP_SCHOOL="민세중학교";
 var APP_CONTACT="오류나 궁금한 점은 브리티 메신저(허유나) 또는 메일로 연락 주세요.";
@@ -2242,6 +2303,7 @@ if(REMOTE){
 }else{
   load(); syncSkin(); finishInit(); histInit();
 }
+checkUpdate();
 </script>
 </body>
 </html>
