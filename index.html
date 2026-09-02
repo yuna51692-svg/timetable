@@ -1,6 +1,6 @@
 <!--
   ======================================================
-  진도표 — 교사를 위한 수업 진도·업무 일정 관리 웹앱
+  스마트 진도표 — 교사를 위한 수업 진도·업무 일정 관리 웹앱
   Author: 민세중학교 허유나 (yuna51692@gmail.com)
   Repository: https://github.com/yuna51692-svg/timetable
   License: MIT License (자세한 조건은 저장소의 LICENSE 파일 참고)
@@ -13,7 +13,7 @@
 <base target="_top">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>진도표</title>
+<title>스마트 진도표</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&family=Gowun+Dodum&family=Gowun+Batang:wght@400;700&family=IBM+Plex+Sans+KR:wght@400;700&family=Jua&display=swap">
@@ -355,6 +355,7 @@ table.wk td{padding:0;vertical-align:top;height:1px}
   font-family:inherit;color:inherit}
 .wcell:hover{border-color:var(--green-line);background:var(--surface)}
 .wrow{font-size:11.5px;line-height:1.45;overflow-wrap:anywhere;word-break:break-word}
+.wsubj{font-weight:400;font-size:10.5px;color:var(--muted)}
 .wrow b{color:var(--green);font-weight:700}
 .wrow.duty b{color:var(--amber)}
 .wrow.del{opacity:.5;text-decoration:line-through}
@@ -483,7 +484,7 @@ table.wk td.nowcol .wcell,table.wk td.nowcol .wmemo{border-color:var(--green);bo
 <header class="top">
   <div class="top-in">
     <div class="brandwrap">
-      <span class="brand" id="brand">진도표</span>
+      <span class="brand" id="brand">스마트 진도표</span>
       <input class="brandin hide" id="brandin" type="text" maxlength="24" placeholder="홍길동의 진도표">
       <button class="brandedit" id="brandedit" title="앱 이름 바꾸기" aria-label="앱 이름 바꾸기">✎</button>
     </div>
@@ -763,12 +764,11 @@ function stamp(){
 }
 var APP_VER="1.4";
 var APP_DATE="2026-09-02";
-var APP_LOG="[학급 모아보기] 탭의 진행률 막대가 정상적으로 채워지도록 수정했고, [자료함]의 그룹 이름도 이제 직접 수정할 수 있습니다.";
+var APP_LOG="앱 이름을 '스마트 진도표'로 바꾸고, [학급 모아보기] 탭의 진행률 막대와 [주간] 탭의 같은 학급·다른 과목 표시를 수정했으며, [자료함]의 그룹 이름도 이제 직접 수정할 수 있습니다.";
 
 /* 새 버전이 나왔는지 조용히 확인합니다. 실패해도 앱 사용에는 지장이 없습니다. */
 var VERSION_URL="https://raw.githubusercontent.com/yuna51692-svg/timetable/main/version.json";
 function checkUpdate(){
-  if(sessionStorage.getItem("updDismissed")) return; /* 이번 방문에서 이미 닫았으면 다시 안 뜸 */
   fetch(VERSION_URL+"?t="+Date.now(),{cache:"no-store"}) /* 깃허브 CDN이 5분간 캐시하므로, 매번 다른 주소로 요청해 우회합니다 */
     .then(function(r){ return r.json(); })
     .then(function(info){
@@ -782,26 +782,27 @@ function checkUpdate(){
       bar.classList.add("show");
       document.getElementById("updmore").onclick=function(){ document.getElementById("updmodal").classList.add("show"); };
       document.getElementById("updclose").onclick=function(){ document.getElementById("updmodal").classList.remove("show"); };
+      /* '나중에'는 지금 화면에서만 배너를 닫습니다. 새로고침하거나 다시 접속하면,
+         아직 업데이트하지 않았다면 배너가 다시 떠요. */
       document.getElementById("upddismiss").onclick=function(){
-        bar.classList.remove("show"); sessionStorage.setItem("updDismissed","1");
+        bar.classList.remove("show");
       };
     })
     .catch(function(){ /* 네트워크 문제 등은 조용히 무시 */ });
 }
 var APP_MAKER="허유나";
 var APP_SCHOOL="민세중학교";
-var APP_CONTACT="오류나 궁금한 점은 브리티 메신저(허유나) 또는 메일로 연락 주세요.";
-var APP_MAIL="yuna51692@gmail.com";
+var APP_CONTACT="오류나 궁금한 점은 아래 설문지로 남겨주세요.";
+var APP_FEEDBACK_URL="https://docs.google.com/forms/d/e/1FAIpQLSeed_QnLkQ3_Hb6ChdN7mgLHio1SlCYhqf_iNFI7Vz0A5Wuvg/viewform";
 var APP_MANUAL="https://github.com/yuna51692-svg/timetable/releases/latest/download/manual.html";   // 사용 안내서 주소 (비워두면 링크가 나오지 않습니다)
 function paintVer(){
   var v=document.getElementById("ver"), g=document.getElementById("verlog");
   if(!v) return;
-  v.innerHTML="<b>진도표 v"+APP_VER+"</b> · "+APP_DATE
+  v.innerHTML="<b>스마트 진도표 v"+APP_VER+"</b> · "+APP_DATE
     +"<em>"+(REMOTE?"시트 연동":"브라우저 저장")+"</em>";
-  if(g) g.textContent="최근 변경 — "+APP_LOG;
   var m=document.getElementById("maker");
   if(m) m.innerHTML="만든 사람 <b>"+esc(APP_MAKER)+"</b> · "+esc(APP_SCHOOL)+"<br>"
-    +esc(APP_CONTACT)+' <a href="mailto:'+esc(APP_MAIL)+'">'+esc(APP_MAIL)+"</a>";
+    +esc(APP_CONTACT)+' <a href="'+esc(APP_FEEDBACK_URL)+'" target="_blank" rel="noopener">의견 남기기</a>';
 }
 var HIST=[], HIDX=-1, HMAX=40, lastPush=0, restoring=false;
 function histInit(){ HIST=[JSON.stringify(S)]; HIDX=0; updateUndoUI(); }
@@ -1613,7 +1614,7 @@ function renderDay(){
   var blank=!allSubjects().length&&!flatClasses(allSubjects(),allCmap()).length&&!Object.keys(S.tt||{}).length&&!S.terms.length;
   if(blank){
     var n=document.createElement("div"); n.className="welcome";
-    n.innerHTML='<b>진도표에 오신 것을 환영합니다</b>'
+    n.innerHTML='<b>스마트 진도표에 오신 것을 환영합니다</b>'
       +'<p>설정에서 아래 네 가지만 채우면 매일 할 일이 자동으로 깔립니다. 한 번 해두면 학기 내내 다시 손댈 일이 거의 없어요.</p>'
       +'<ol><li><b>담당 과목</b> — 과학2, 통합과학처럼 가르치는 과목명</li>'
       +'<li><b>담당 학급</b> — 과목마다 들어가는 반 (2-1 형식)</li>'
@@ -2303,7 +2304,7 @@ function loadSkin(){
   try{ v=localStorage.getItem("jindo.skin"); }catch(e){}
   applySkin(v||"lagoon");
 }
-function appTitle(){ return (S.title&&S.title.trim())||"진도표"; }
+function appTitle(){ return (S.title&&S.title.trim())||"스마트 진도표"; }
 function paintTitle(){
   var b=document.getElementById("brand");
   if(b) b.textContent=appTitle();
@@ -2519,6 +2520,9 @@ function weekCell(d,p){
   var el=document.createElement("button"); el.className="wcell";
   el.onclick=function(){ cur=new Date(d.getFullYear(),d.getMonth(),d.getDate()); goTab("day"); };
   if(o.status!=="normal") el.classList.add("off");
+  /* 같은 학급이 두 과목 이상에 걸쳐 있으면, 학급명 옆에 과목명도 함께 보여줍니다. */
+  var subs=subjectsFor(dk), cm=cmapFor(dk), clsCnt={};
+  subs.forEach(function(x){ (cm[x]||[]).forEach(function(c){ clsCnt[c]=(clsCnt[c]||0)+1; }); });
   (o.rows||[]).forEach(function(r){
     if(String(r.period)!==p) return;
     var isD=!isClassRow(r);
@@ -2531,7 +2535,9 @@ function weekCell(d,p){
       else if(r.mv.k==="in") mvtx=' <em class="mvtag">(← '+esc(mdk(r.mv.dk))+')</em>';
       else mvtx=' <em class="mvtag">(↔ '+esc(mdk(r.mv.dk))+')</em>';
     }
-    ln.innerHTML="<b>"+esc(r.cls||"")+"</b>"+mvtx
+    var clsLabel=esc(r.cls||"");
+    if(!isD&&r.cls&&r.grade&&r.grade!==ETC&&clsCnt[r.cls]>1) clsLabel+=' <span class="wsubj">'+esc(r.grade)+'</span>';
+    ln.innerHTML="<b>"+clsLabel+"</b>"+mvtx
       +(r.lesson?" <i>"+esc(numbered(lessonsFor(dk,r.grade),r.lesson))+"</i>":"")
       +(r.place?' <s>'+esc(r.place)+'</s>':"")
       +(r.note?'<br><u class="'+(isD?"n-duty":"n-class")+'">'+esc(r.note)+'</u>':"");
