@@ -836,7 +836,7 @@ function timeTravel(step){
   if(t<0||t>=HIST.length) return;
   HIDX=t; restoring=true;
   try{ S=JSON.parse(HIST[HIDX]); }catch(e){ restoring=false; return; }
-  normalize(); syncSkin(); refreshAll(); updateUndoUI();
+  normalize(); syncSkin(); refreshAll(); updateUndoUI(); renderYt();
   save();
   restoring=false;
   if(REMOTE){ clearTimeout(saveTimer); push(); }
@@ -882,7 +882,7 @@ function pull(force){
     if(res.json){ try{ S=JSON.parse(res.json); }catch(e){ return; } }
     normalize(); syncSkin(); dirty=false;
     var pe=document.getElementById("pcount"); if(pe) pe.value=S.periods;
-    renderDay(); stamp();
+    renderDay(); renderYt(); stamp();
   }).loadState();
 }
 document.addEventListener("visibilitychange",function(){ if(!document.hidden) pull(false); });
@@ -894,7 +894,7 @@ function load(){
 }
 function normalize(){
   S.places=S.places||[]; S.terms=S.terms||[]; S.duties=S.duties||[];
-  S.lessons=S.lessons||{}; S.days=S.days||{};
+  S.lessons=S.lessons||{}; S.days=S.days||{}; S.ytGroups=S.ytGroups||[];
   if(!S.subjMigrated) S.classes=S.classes||[];
   sortCls(S.classes); sortCls(S.places);
   if(!S.dutySeeded){
@@ -2652,7 +2652,7 @@ document.getElementById("fin").onchange=function(e){
       var inc=JSON.parse(r.result);
       if(inc.subjMigrated===undefined) inc.subjMigrated=false;   // 옛 백업이면 과목 구조로 다시 변환
       S=Object.assign(S,inc);
-      normalize(); syncSkin(); save(); renderSetup(); renderDay();
+      normalize(); syncSkin(); save(); renderSetup(); renderDay(); renderYt();
       alert("불러왔습니다.");
     }
     catch(err){ alert("파일을 읽지 못했습니다. 백업 파일이 맞는지 확인해주세요."); }
@@ -2871,7 +2871,6 @@ document.getElementById("ythandle").onclick=function(){
   document.getElementById("ytbar").classList.toggle("open");
   this.classList.toggle("open");
 };
-renderYt();
 
 loadSkin(); loadFont();
 var pc=document.getElementById("pcount");
@@ -2886,6 +2885,7 @@ function finishInit(){
   document.getElementById("storenote").innerHTML=REMOTE
     ? "입력한 내용은 구글 스프레드시트에 저장되며 <b>PC·태블릿·폰에서 같은 내용</b>을 보게 됩니다. 학년이 끝날 때나 큰 변경 전에는 백업을 한 번 내려받아 두세요."
     : "입력한 내용은 <b>이 브라우저 안에만</b> 저장됩니다. 다른 기기에서는 보이지 않고, 인터넷 사용 기록을 삭제하면 함께 지워집니다. <b>주말마다 백업을 내려받아 두세요.</b>";
+  renderYt();
   goTab("week");
 }
 if(REMOTE){
