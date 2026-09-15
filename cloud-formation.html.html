@@ -1,0 +1,1825 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>단열팽창과 온도 하강</title>
+<style>
+  :root{
+    --hot: #ff7a4a;
+    --cold: #4a90e2;
+    --ink: #22314a;
+    --paper: #f3f7fb;
+    --card: #ffffff;
+  }
+  *{ box-sizing:border-box; }
+  body{
+    margin:0;
+    font-family: "Pretendard","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    background: linear-gradient(180deg,#dcecfb 0%, #f3f7fb 55%, #f8f5ee 100%);
+    color: var(--ink);
+    min-height:100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:24px;
+  }
+  .app{
+    width:100%;
+    max-width: 880px;
+    background: var(--card);
+    border-radius: 28px;
+    box-shadow: 0 24px 60px rgba(34,49,74,0.14);
+    padding: 28px 28px 24px;
+    position:relative;
+  }
+  .titlebar{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    margin-bottom: 6px;
+  }
+  .titlebar h1{
+    font-size: 20px;
+    margin:0;
+    letter-spacing:-0.2px;
+  }
+  .pips{
+    display:flex;
+    gap:6px;
+  }
+  .pip{
+    width:9px;height:9px;border-radius:50%;
+    background:#d8e1ee;
+    cursor:pointer;
+    transition: background .2s, transform .2s;
+  }
+  .pip.active{ background: var(--hot); transform:scale(1.25); }
+  .pip.done{ background:#b9c8dd; }
+
+  .subtitle{
+    font-size:13px;
+    color:#7a879c;
+    margin-bottom: 18px;
+  }
+
+  .stage{
+    display:grid;
+    grid-template-columns: 1.15fr 1fr;
+    gap: 22px;
+    align-items:start;
+  }
+  @media (max-width: 700px){
+    .stage{ grid-template-columns: 1fr; }
+  }
+
+  .scene{
+    background: radial-gradient(circle at 30% 20%, #eef6ff 0%, #dbeafd 55%, #cfe6fb 100%);
+    border-radius: 22px;
+    padding: 10px 6px 4px;
+    position:relative;
+    overflow:hidden;
+    min-height: 460px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-start;
+  }
+  .scene .cloud{
+    position:absolute;
+    background:#fff;
+    opacity:.8;
+    border-radius:50%;
+  }
+  #mainScene, #workScene, #riseScene{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    width:100%;
+  }
+  #balloonCanvas, #workCanvas, #riseCanvas{ display:block; }
+
+  .thermo-wrap{
+    position:absolute;
+    right: 14px;
+    top: 16px;
+    width: 34px;
+    height: 220px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+  .thermo-tube{
+    width: 14px;
+    flex:1;
+    background: #e7edf5;
+    border-radius: 10px;
+    position:relative;
+    overflow:hidden;
+    box-shadow: inset 0 0 0 2px #d3ddea;
+  }
+  .thermo-fill{
+    position:absolute;
+    bottom:0; left:0; right:0;
+    background: linear-gradient(180deg, var(--hot), #ffb199);
+    border-radius: 10px;
+    transition: height .5s ease, background .5s ease;
+  }
+  .thermo-bulb{
+    width: 26px; height:26px;
+    border-radius:50%;
+    background: var(--hot);
+    margin-top:-6px;
+    box-shadow: inset 0 0 0 2px #d3ddea;
+    transition: background .5s ease;
+  }
+  .thermo-label{
+    font-size:11px;
+    color:#7a879c;
+    margin-top:6px;
+    text-align:center;
+    white-space:nowrap;
+  }
+
+  .expand-btn{
+    margin-top: 10px;
+    align-self:center;
+    background: var(--hot);
+    color:#fff;
+    border:none;
+    padding: 12px 22px;
+    border-radius: 999px;
+    font-size:15px;
+    font-weight:600;
+    cursor:pointer;
+    box-shadow: 0 8px 18px rgba(255,122,74,0.35);
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .expand-btn:hover{ transform: translateY(-1px); box-shadow: 0 10px 22px rgba(255,122,74,0.45); }
+  .expand-btn:active{ transform: translateY(1px) scale(.98); }
+  .expand-btn[disabled]{
+    opacity:.4; cursor:default; box-shadow:none; transform:none;
+  }
+
+  .guide{
+    display:flex;
+    flex-direction:column;
+    gap: 14px;
+  }
+  .mascot-row{
+    display:flex;
+    align-items:flex-start;
+    gap: 10px;
+  }
+  .mascot{
+    flex: 0 0 auto;
+    width:46px; height:46px;
+    border-radius:50%;
+    background: linear-gradient(160deg,#ffe3d3,#ffcab0);
+    display:flex; align-items:center; justify-content:center;
+    font-size:22px;
+    box-shadow: 0 4px 10px rgba(0,0,0,.08);
+  }
+  .bubble{
+    position:relative;
+    background: #eef3fb;
+    border-radius: 16px;
+    padding: 16px 18px;
+    flex:1;
+    min-height: 92px;
+  }
+  .bubble::before{
+    content:"";
+    position:absolute;
+    left:-8px; top: 16px;
+    width:0; height:0;
+    border-top: 8px solid transparent;
+    border-bottom: 8px solid transparent;
+    border-right: 8px solid #eef3fb;
+  }
+  .bubble p{
+    margin:0;
+    font-size: 15px;
+    line-height: 1.62;
+    color: var(--ink);
+  }
+  .bubble .highlight{
+    color:#d75f34;
+    font-weight:700;
+  }
+  .bubble .cool{
+    color:#2f6fbf;
+    font-weight:700;
+  }
+
+  .callout-box{
+    background: #fff7ec;
+    border: 1px solid #f2dcbc;
+    border-radius: 14px;
+    padding: 12px 14px;
+    font-size: 13.5px;
+    color:#8a6a34;
+    line-height:1.55;
+  }
+
+  .actions{
+    display:flex;
+    justify-content:flex-end;
+    gap:8px;
+  }
+  .nav-btn{
+    border:none;
+    background: var(--ink);
+    color:#fff;
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .nav-btn.secondary{
+    background:#e4e9f1;
+    color:#5a6780;
+  }
+  .nav-btn[disabled]{ opacity:.35; cursor:default; }
+
+  .summary-list{
+    list-style:none;
+    margin:0; padding:0;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .summary-list li{
+    display:flex;
+    gap:10px;
+    font-size:14px;
+    line-height:1.5;
+  }
+  .summary-num{
+    flex:0 0 auto;
+    width:22px;height:22px;
+    border-radius:50%;
+    background: var(--hot);
+    color:#fff;
+    font-size:12px;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700;
+    margin-top:1px;
+  }
+
+  .tabbar{
+    display:flex;
+    gap:6px;
+    margin-bottom:16px;
+  }
+  .tab-btn{
+    border:none;
+    background:#eef1f6;
+    color:#7a879c;
+    padding:9px 18px;
+    border-radius:999px;
+    font-size:14px;
+    font-weight:700;
+    cursor:pointer;
+    transition: background .15s ease, color .15s ease;
+  }
+  .tab-btn.active{
+    background: var(--ink);
+    color:#fff;
+  }
+
+  .cloud-row{
+    display:grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 14px;
+    align-items:center;
+  }
+  @media (max-width: 700px){
+    .cloud-row{ grid-template-columns: 1fr; }
+  }
+  .cloud-scene, .cloud-graph{
+    background: radial-gradient(circle at 30% 20%, #eef6ff 0%, #dbeafd 55%, #cfe6fb 100%);
+    border-radius: 22px;
+    padding: 8px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    overflow:hidden;
+  }
+  .cloud-graph{
+    background: #ffffff;
+    box-shadow: inset 0 0 0 1px #e7edf5;
+  }
+  .cloud-mid{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+  }
+  .cloud-graph-note{
+    font-size:12.5px;
+    color:#7a879c;
+    margin-top:8px;
+    text-align:center;
+  }
+  #cloudCanvas, #satCurveCanvas{ display:block; }
+
+  .lift-grid{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  @media (max-width: 560px){
+    .lift-grid{ grid-template-columns: 1fr; }
+  }
+  .lift-card{
+    border:none;
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 6px 16px rgba(34,49,74,0.10);
+    padding: 10px;
+    cursor:pointer;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:8px;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .lift-card:hover{
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(34,49,74,0.16);
+  }
+  .lift-card canvas{
+    display:block;
+    width:100%;
+    height:auto;
+    border-radius: 12px;
+  }
+  .lift-card span{
+    font-size: 13.5px;
+    font-weight:600;
+    color: var(--ink);
+    text-align:center;
+    line-height:1.4;
+  }
+
+  .lift-stage{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap: 12px;
+  }
+  #liftCanvas{
+    display:block;
+    width:100%;
+    max-width: 700px;
+    height:auto;
+    border-radius: 20px;
+  }
+  .lift-controls{
+    display:flex;
+    gap:10px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="tabbar">
+    <button class="tab-btn active" id="tabBtnAdiabatic" data-tab="adiabatic">단열팽창</button>
+    <button class="tab-btn" id="tabBtnCloud" data-tab="cloud">구름생성</button>
+    <button class="tab-btn" id="tabBtnLift" data-tab="lift">공기의 상승</button>
+  </div>
+
+  <div id="panel-adiabatic" class="tab-panel">
+  <div class="titlebar">
+    <h1>단열팽창과 온도 하강</h1>
+    <div class="pips" id="pips"></div>
+  </div>
+  <div class="subtitle">풍선이 순식간에 부풀 때 왜 차가워질까?</div>
+
+  <div class="stage">
+    <div class="scene">
+      <div class="cloud" style="width:60px;height:24px;left:18px;top:14px;"></div>
+      <div class="cloud" style="width:40px;height:18px;right:60px;top:34px;"></div>
+
+      <div id="mainScene">
+        <canvas id="balloonCanvas" width="380" height="440"></canvas>
+
+        <div class="thermo-wrap">
+          <div class="thermo-tube">
+            <div class="thermo-fill" id="thermoFill" style="height:70%;"></div>
+          </div>
+          <div class="thermo-bulb" id="thermoBulb"></div>
+          <div class="thermo-label" id="thermoLabel">기체 온도</div>
+        </div>
+
+        <button class="expand-btn" id="expandBtn" style="display:none;">펑! 순식간에 부풀리기</button>
+      </div>
+
+      <div id="workScene" style="display:none;">
+        <canvas id="workCanvas" width="380" height="400"></canvas>
+        <button class="expand-btn" id="replayWorkBtn">다시 보기</button>
+      </div>
+
+      <div id="riseScene" style="display:none;">
+        <canvas id="riseCanvas" width="380" height="440"></canvas>
+        <button class="expand-btn" id="riseBtn">풍선 띄우기</button>
+      </div>
+    </div>
+
+    <div class="guide">
+      <div class="mascot-row">
+        <div class="mascot">🔬</div>
+        <div class="bubble">
+          <p id="bubbleText"></p>
+        </div>
+      </div>
+      <div class="callout-box" id="calloutBox" style="display:none;"></div>
+      <div class="actions">
+        <button class="nav-btn secondary" id="prevBtn">이전</button>
+        <button class="nav-btn" id="nextBtn">다음 →</button>
+      </div>
+    </div>
+  </div>
+  </div>
+
+  <div id="panel-cloud" class="tab-panel" style="display:none;">
+    <div class="titlebar">
+      <h1>구름은 어떻게 만들어질까?</h1>
+    </div>
+    <div class="subtitle">공기 덩어리가 상승하며 단열 팽창 → 냉각 → 이슬점 도달 → 구름 생성</div>
+
+    <div class="cloud-row">
+      <div class="cloud-scene">
+        <canvas id="cloudCanvas" width="300" height="440"></canvas>
+      </div>
+
+      <div class="cloud-mid">
+        <button class="expand-btn" id="cloudRiseBtn">상승</button>
+      </div>
+
+      <div class="cloud-graph">
+        <canvas id="satCurveCanvas" width="300" height="360"></canvas>
+        <div class="cloud-graph-note" id="cloudGraphNote">기온이 내려가면서 점이 왼쪽으로 이동해요.</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="panel-lift" class="tab-panel" style="display:none;">
+    <div class="titlebar">
+      <h1>공기는 왜 상승할까?</h1>
+    </div>
+    <div class="subtitle">궁금한 상황을 눌러 공기 덩어리가 상승하는 원리를 살펴보세요.</div>
+
+    <div id="liftGrid" class="lift-grid">
+      <button class="lift-card" data-case="heat">
+        <canvas width="220" height="150"></canvas>
+        <span>지표의 일부분이<br>강하게 가열될 때</span>
+      </button>
+      <button class="lift-card" data-case="mountain">
+        <canvas width="220" height="150"></canvas>
+        <span>공기가 산을<br>타고 오를 때</span>
+      </button>
+      <button class="lift-card" data-case="lowpressure">
+        <canvas width="220" height="150"></canvas>
+        <span>기압이 낮은 곳으로<br>공기가 모여들 때</span>
+      </button>
+      <button class="lift-card" data-case="front">
+        <canvas width="220" height="150"></canvas>
+        <span>찬 공기와<br>따뜻한 공기가 만날 때</span>
+      </button>
+    </div>
+
+    <div id="liftStage" class="lift-stage" style="display:none;">
+      <canvas id="liftCanvas" width="700" height="420"></canvas>
+      <div class="lift-controls">
+        <button class="nav-btn secondary" id="liftBackBtn">← 돌아가기</button>
+        <button class="nav-btn" id="liftReplayBtn" style="display:none;">다시보기</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ---------- 물리 시뮬레이션 (캔버스) ----------
+  const canvas = document.getElementById('balloonCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const centerX = W/2, centerY = 190;
+
+  const R0 = 82;   // 초기 풍선 반지름
+  const R1 = 158;  // 팽창 후 풍선 반지름
+  let R = R0;
+  let dRdt = 0;
+
+  let expanding = false;
+  let expandStart = 0;
+  const expandDuration = 1100; // ms, "순식간" 연출
+  let hasExpanded = false;
+
+  const N = 46;
+  const particleRadius = 3.2;
+  let particles = [];
+
+  function easeOutCubic(t){ return 1 - Math.pow(1-t,3); }
+
+  function randSpeed(){
+    // 초기 온도에 해당하는 기본 속력 (px/s), 약간의 분포
+    const base = 130;
+    return base * (0.7 + Math.random()*0.6);
+  }
+
+  function initParticles(){
+    particles = [];
+    for(let i=0;i<N;i++){
+      const ang = Math.random()*Math.PI*2;
+      const rad = Math.sqrt(Math.random()) * (R0 - particleRadius*2);
+      const x = Math.cos(ang)*rad;
+      const y = Math.sin(ang)*rad;
+      const speed = randSpeed();
+      const dir = Math.random()*Math.PI*2;
+      particles.push({
+        x, y,
+        vx: Math.cos(dir)*speed,
+        vy: Math.sin(dir)*speed
+      });
+    }
+  }
+  initParticles();
+
+  function avgSpeed(){
+    let s = 0;
+    for(const p of particles) s += Math.hypot(p.vx,p.vy);
+    return s/particles.length;
+  }
+  const initialAvgSpeed = (function(){
+    // 계산용 임시 (초기 분포 기준 근사)
+    let s=0;
+    for(const p of particles) s+=Math.hypot(p.vx,p.vy);
+    return s/particles.length;
+  })();
+
+  function normalizeSpeedsTo(targetAvg){
+    const cur = avgSpeed();
+    if(cur <= 0) return;
+    const factor = targetAvg/cur;
+    for(const p of particles){
+      p.vx *= factor;
+      p.vy *= factor;
+    }
+  }
+
+  function speedToColor(t){
+    // t: 0(차가움) ~ 1(뜨거움)
+    t = Math.max(0, Math.min(1,t));
+    const c1 = [74,144,226];   // cold
+    const c2 = [255,122,74];   // hot
+    const r = Math.round(c1[0] + (c2[0]-c1[0])*t);
+    const g = Math.round(c1[1] + (c2[1]-c1[1])*t);
+    const b = Math.round(c1[2] + (c2[2]-c1[2])*t);
+    return `rgb(${r},${g},${b})`;
+  }
+
+  function tempRatio(){
+    return Math.max(0, Math.min(1, avgSpeed()/initialAvgSpeed));
+  }
+
+  function updateThermometer(){
+    const t = tempRatio(); // 0~1
+    const pct = Math.round(20 + t*70); // 20~90% 사이로 표시
+    const fill = document.getElementById('thermoFill');
+    const bulb = document.getElementById('thermoBulb');
+    const label = document.getElementById('thermoLabel');
+    const color = speedToColor(t);
+    fill.style.height = pct + '%';
+    fill.style.background = `linear-gradient(180deg, ${color}, ${color})`;
+    bulb.style.background = color;
+    label.textContent = t > 0.75 ? '기체 온도: 높음' : (t < 0.45 ? '기체 온도: 낮음' : '기체 온도: 보통');
+  }
+
+  let lastTime = null;
+  function step(now){
+    if(lastTime===null) lastTime = now;
+    let dt = (now - lastTime)/1000;
+    dt = Math.min(dt, 0.033);
+    lastTime = now;
+
+    // 풍선 반지름 업데이트
+    if(expanding){
+      const elapsed = now - expandStart;
+      const progress = Math.min(1, elapsed/expandDuration);
+      const prevR = R;
+      R = R0 + (R1-R0)*easeOutCubic(progress);
+      dRdt = dt>0 ? (R-prevR)/dt : 0;
+      if(progress >= 1){
+        expanding = false;
+        dRdt = 0;
+        // 팽창이 끝난 뒤, 목표 온도비로 최종 보정 (일관된 냉각 효과 보장)
+        normalizeSpeedsTo(initialAvgSpeed*0.52);
+        hasExpanded = true;
+      }
+    } else {
+      dRdt = 0;
+    }
+
+    // 입자 이동 및 벽 충돌
+    for(const p of particles){
+      p.x += p.vx*dt;
+      p.y += p.vy*dt;
+      const dist = Math.hypot(p.x,p.y);
+      const limit = R - particleRadius;
+      if(dist > limit && dist>0){
+        const nx = p.x/dist, ny = p.y/dist;
+        const vRadial = p.vx*nx + p.vy*ny;
+        const vTx = p.vx - vRadial*nx;
+        const vTy = p.vy - vRadial*ny;
+        // 팽창(또는 정지) 중인 벽과의 탄성 충돌
+        const vRadialNew = 2*dRdt - vRadial;
+        p.vx = vTx + vRadialNew*nx;
+        p.vy = vTy + vRadialNew*ny;
+        p.x = nx*limit;
+        p.y = ny*limit;
+      }
+    }
+
+    draw();
+    updateThermometer();
+    requestAnimationFrame(step);
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+
+    const t = tempRatio();
+    const balloonColor = speedToColor(t);
+
+    // 풍선 몸체
+    ctx.save();
+    const grad = ctx.createRadialGradient(centerX-R*0.35, centerY-R*0.35, R*0.15, centerX, centerY, R);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.15, balloonColor);
+    grad.addColorStop(1, shade(balloonColor, -18));
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, R, 0, Math.PI*2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // 매듭
+    ctx.beginPath();
+    ctx.moveTo(centerX-7, centerY+R-2);
+    ctx.lineTo(centerX+7, centerY+R-2);
+    ctx.lineTo(centerX, centerY+R+12);
+    ctx.closePath();
+    ctx.fillStyle = shade(balloonColor,-25);
+    ctx.fill();
+
+    // 끈
+    ctx.beginPath();
+    ctx.moveTo(centerX, centerY+R+12);
+    ctx.quadraticCurveTo(centerX-14, centerY+R+40, centerX, centerY+R+70);
+    ctx.strokeStyle = '#c8cfda';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.restore();
+
+    // 입자 (클리핑으로 풍선 안쪽만 표시)
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, R-1.5, 0, Math.PI*2);
+    ctx.clip();
+    for(const p of particles){
+      const speed = Math.hypot(p.vx,p.vy);
+      const pt = Math.max(0, Math.min(1, speed/initialAvgSpeed));
+      ctx.beginPath();
+      ctx.arc(centerX+p.x, centerY+p.y, particleRadius, 0, Math.PI*2);
+      ctx.fillStyle = speedToColor(pt);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function shade(rgbStr, amt){
+    const m = rgbStr.match(/\d+/g).map(Number);
+    const adj = v => Math.max(0, Math.min(255, v+amt));
+    return `rgb(${adj(m[0])},${adj(m[1])},${adj(m[2])})`;
+  }
+
+  requestAnimationFrame(step);
+
+  // ---------- 스텝5 전용: 나무도막을 밀어내는 "일" 시각화 ----------
+  const workCanvas = document.getElementById('workCanvas');
+  const wctx = workCanvas.getContext('2d');
+  const wW = workCanvas.width, wH = workCanvas.height;
+  const wCenterX = wW/2, wCenterY = wH/2;
+
+  const RwSmall = 62;
+  const RwBig = 132;
+  const blockThickness = 26;
+  const blockLength = 100;
+  const gap = 6; // 나무도막이 풍선에서 살짝 떨어져 시작해, 부풀 때 맞닿아 밀리는 느낌
+  let Rw = RwSmall;
+  let workAnimating = false;
+  let workStart = 0;
+  const workDuration = 1300;
+
+  const replayWorkBtn = document.getElementById('replayWorkBtn');
+
+  function drawWoodBlock(cx, cy, w, h){
+    wctx.save();
+    wctx.translate(cx, cy);
+    const grad = wctx.createLinearGradient(-w/2, -h/2, w/2, h/2);
+    grad.addColorStop(0, '#c8925a');
+    grad.addColorStop(1, '#a06b3c');
+    wctx.fillStyle = grad;
+    roundRectPath(wctx, -w/2, -h/2, w, h, 5);
+    wctx.fill();
+    wctx.strokeStyle = 'rgba(70,44,20,0.35)';
+    wctx.lineWidth = 1;
+    // 나뭇결
+    for(let i=-2;i<=2;i++){
+      wctx.beginPath();
+      if(w>=h){
+        wctx.moveTo(-w/2+6, i*(h/6));
+        wctx.lineTo(w/2-6, i*(h/6));
+      } else {
+        wctx.moveTo(i*(w/6), -h/2+6);
+        wctx.lineTo(i*(w/6), h/2-6);
+      }
+      wctx.stroke();
+    }
+    wctx.restore();
+  }
+
+  function roundRectPath(c, x, y, w, h, r){
+    c.beginPath();
+    c.moveTo(x+r, y);
+    c.arcTo(x+w, y, x+w, y+h, r);
+    c.arcTo(x+w, y+h, x, y+h, r);
+    c.arcTo(x, y+h, x, y, r);
+    c.arcTo(x, y, x+w, y, r);
+    c.closePath();
+  }
+
+  function drawArrow(c, x1, y1, x2, y2){
+    c.save();
+    c.strokeStyle = '#d75f34';
+    c.fillStyle = '#d75f34';
+    c.lineWidth = 3;
+    c.lineCap = 'round';
+    c.beginPath();
+    c.moveTo(x1,y1);
+    c.lineTo(x2,y2);
+    c.stroke();
+    const ang = Math.atan2(y2-y1, x2-x1);
+    const headLen = 9;
+    c.beginPath();
+    c.moveTo(x2,y2);
+    c.lineTo(x2-headLen*Math.cos(ang-Math.PI/6), y2-headLen*Math.sin(ang-Math.PI/6));
+    c.lineTo(x2-headLen*Math.cos(ang+Math.PI/6), y2-headLen*Math.sin(ang+Math.PI/6));
+    c.closePath();
+    c.fill();
+    c.restore();
+  }
+
+  function drawWork(progress){
+    wctx.clearRect(0,0,wW,wH);
+
+    // 풍선
+    const grad = wctx.createRadialGradient(wCenterX-Rw*0.35, wCenterY-Rw*0.35, Rw*0.15, wCenterX, wCenterY, Rw);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.15, '#ff9a66');
+    grad.addColorStop(1, '#e8703f');
+    wctx.beginPath();
+    wctx.arc(wCenterX, wCenterY, Rw, 0, Math.PI*2);
+    wctx.fillStyle = grad;
+    wctx.fill();
+
+    // 매듭 + 끈
+    wctx.beginPath();
+    wctx.moveTo(wCenterX-6, wCenterY+Rw-2);
+    wctx.lineTo(wCenterX+6, wCenterY+Rw-2);
+    wctx.lineTo(wCenterX, wCenterY+Rw+10);
+    wctx.closePath();
+    wctx.fillStyle = '#c85f34';
+    wctx.fill();
+
+    // 도막이 항상 풍선 표면에 맞닿아 있도록 위치를 Rw에 연동
+    const d = Rw + gap; // 도막 안쪽 면까지의 거리
+
+    // 위
+    drawWoodBlock(wCenterX, wCenterY - d - blockThickness/2, blockLength, blockThickness);
+    // 아래
+    drawWoodBlock(wCenterX, wCenterY + d + blockThickness/2, blockLength, blockThickness);
+    // 왼쪽
+    drawWoodBlock(wCenterX - d - blockThickness/2, wCenterY, blockThickness, blockLength);
+    // 오른쪽
+    drawWoodBlock(wCenterX + d + blockThickness/2, wCenterY, blockThickness, blockLength);
+
+    // 애니메이션 중일 때만 "일"을 화살표로 표시 (나무도막과 겹치지 않도록 도막 옆 여백에 배치)
+    if(progress > 0.02 && progress < 0.97){
+      const dirs = [
+        // n: 바깥쪽 방향, tangent: 라벨을 옆으로 비켜 놓을 방향
+        {n:[0,-1], tangent:[1,0],  tOffset: 62},   // 위쪽 화살표 → 라벨은 오른쪽으로 비켜서
+        {n:[0,1],  tangent:[1,0],  tOffset: 62},   // 아래쪽 화살표 → 라벨은 오른쪽으로 비켜서
+        {n:[-1,0], tangent:[0,-1], tOffset: 62},   // 왼쪽 화살표 → 라벨은 위쪽으로 비켜서
+        {n:[1,0],  tangent:[0,-1], tOffset: 62}    // 오른쪽 화살표 → 라벨은 위쪽으로 비켜서
+      ];
+      dirs.forEach(dir=>{
+        const [nx, ny] = dir.n;
+        // 화살표는 도막 바로 앞에서 멈춰, 도막 위에 그려지지 않도록 함
+        const x1 = wCenterX + nx*(Rw-14);
+        const y1 = wCenterY + ny*(Rw-14);
+        const x2 = wCenterX + nx*(Rw+2);
+        const y2 = wCenterY + ny*(Rw+2);
+        drawArrow(wctx, x1, y1, x2, y2);
+
+        const [tx, ty] = dir.tangent;
+        const labelX = x2 + tx*dir.tOffset;
+        const labelY = y2 + ty*dir.tOffset;
+        wctx.save();
+        wctx.font = '700 14px Pretendard, sans-serif';
+        wctx.fillStyle = '#d75f34';
+        wctx.textAlign = 'center';
+        wctx.textBaseline = 'middle';
+        wctx.fillText('일', labelX, labelY);
+        wctx.restore();
+      });
+
+      // 풍선 중앙에 에너지 감소 문구 표시
+      wctx.save();
+      wctx.font = '700 15px Pretendard, sans-serif';
+      wctx.textAlign = 'center';
+      wctx.textBaseline = 'middle';
+      wctx.lineWidth = 3;
+      wctx.strokeStyle = 'rgba(140,50,10,0.55)';
+      wctx.strokeText('에너지 감소', wCenterX, wCenterY);
+      wctx.fillStyle = '#ffffff';
+      wctx.fillText('에너지 감소', wCenterX, wCenterY);
+      wctx.restore();
+    }
+  }
+
+  let workGen = 0;
+
+  function workLoop(now, myGen){
+    if(myGen !== workGen) return; // 다른 곳으로 이동해 취소된 애니메이션
+    const elapsed = now - workStart;
+    const progress = Math.min(1, elapsed/workDuration);
+    Rw = RwSmall + (RwBig-RwSmall)*easeOutCubic(progress);
+    drawWork(progress);
+    if(progress < 1){
+      requestAnimationFrame(n => workLoop(n, myGen));
+    } else {
+      workAnimating = false;
+      replayWorkBtn.disabled = false;
+      replayWorkBtn.textContent = '다시 보기';
+    }
+  }
+
+  function startWorkAnimation(){
+    if(workAnimating) return;
+    workAnimating = true;
+    Rw = RwSmall;
+    workStart = performance.now();
+    replayWorkBtn.disabled = true;
+    replayWorkBtn.textContent = '부풀며 밀어내는 중…';
+    const myGen = ++workGen;
+    requestAnimationFrame(n => workLoop(n, myGen));
+  }
+
+  function resetWorkScene(){
+    workGen++; // 진행 중이던 애니메이션 무효화
+    workAnimating = false;
+    Rw = RwSmall;
+    replayWorkBtn.disabled = false;
+    replayWorkBtn.textContent = '다시 보기';
+    drawWork(0);
+  }
+
+  // ---------- 스텝7 전용: 풍선이 상승하며 팽창하는 모습 ----------
+  const riseCanvas = document.getElementById('riseCanvas');
+  const rctx = riseCanvas.getContext('2d');
+  const rW = riseCanvas.width, rH = riseCanvas.height;
+  const riseBtn = document.getElementById('riseBtn');
+
+  const RrSmall = 46;
+  const RrBig = 96;
+  const riseDuration = 3600;
+  const maxScroll = 640;
+  let riseGen = 0;
+  let riseAnimating = false;
+  let riseStart = 0;
+
+  function easeInOutQuad(t){
+    return t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2, 2)/2;
+  }
+
+  // 배경 장식 요소(구름/별/언덕)는 큰 세로 범위 안의 고정된 좌표에 배치해두고,
+  // scrollY만큼 아래로 밀어서 그리면 "배경이 아래로 흐르며 풍선이 위로 오르는" 효과가 남
+  const riseTop = -560;   // 아주 높은 고도(위쪽)
+  const riseBottom = 470; // 지면 부근(아래쪽)
+
+  const riseClouds = [
+    {x:80,  y:330, s:1.0},
+    {x:290, y:230, s:0.8},
+    {x:60,  y:60,  s:0.9},
+    {x:300, y:-60, s:0.7},
+    {x:120, y:-220,s:0.8},
+    {x:270, y:-380,s:0.6}
+  ];
+  const riseStars = [
+    {x:40,y:-480},{x:340,y:-500},{x:180,y:-440},{x:90,y:-380},
+    {x:260,y:-330},{x:20,y:-260},{x:330,y:-230},{x:150,y:-520}
+  ];
+
+  function drawRiseCloud(x,y,scale){
+    rctx.save();
+    rctx.translate(x,y);
+    rctx.scale(scale,scale);
+    rctx.fillStyle = 'rgba(255,255,255,0.9)';
+    rctx.beginPath();
+    rctx.arc(0,0,16,0,Math.PI*2);
+    rctx.arc(18,-4,13,0,Math.PI*2);
+    rctx.arc(-18,-2,12,0,Math.PI*2);
+    rctx.arc(6,8,15,0,Math.PI*2);
+    rctx.arc(-10,9,12,0,Math.PI*2);
+    rctx.fill();
+    rctx.restore();
+  }
+
+  function drawRiseBackground(scrollY){
+    rctx.save();
+    rctx.translate(0, scrollY);
+
+    const grad = rctx.createLinearGradient(0, riseTop, 0, riseBottom);
+    grad.addColorStop(0,   '#131a3e');
+    grad.addColorStop(0.35,'#2b4d8f');
+    grad.addColorStop(0.7, '#8fc7ec');
+    grad.addColorStop(1,   '#d9f0ff');
+    rctx.fillStyle = grad;
+    rctx.fillRect(0, riseTop, rW, riseBottom-riseTop);
+
+    // 별 (고고도 구간)
+    rctx.fillStyle = 'rgba(255,255,255,0.85)';
+    riseStars.forEach(st=>{
+      rctx.beginPath();
+      rctx.arc(st.x, st.y, 1.6, 0, Math.PI*2);
+      rctx.fill();
+    });
+
+    // 구름
+    riseClouds.forEach(c=> drawRiseCloud(c.x, c.y, c.s));
+
+    // 지면
+    rctx.fillStyle = '#7bbf6a';
+    rctx.beginPath();
+    rctx.moveTo(0, riseBottom-6);
+    rctx.quadraticCurveTo(rW*0.3, riseBottom-30, rW*0.55, riseBottom-8);
+    rctx.quadraticCurveTo(rW*0.8, riseBottom+6, rW, riseBottom-14);
+    rctx.lineTo(rW, riseBottom+40);
+    rctx.lineTo(0, riseBottom+40);
+    rctx.closePath();
+    rctx.fill();
+
+    rctx.restore();
+  }
+
+  function drawRiseBalloon(Rr){
+    const cx = rW/2, cy = rH/2 - 10;
+    const grad = rctx.createRadialGradient(cx-Rr*0.35, cy-Rr*0.35, Rr*0.15, cx, cy, Rr);
+    grad.addColorStop(0, '#ffffff');
+    grad.addColorStop(0.15, '#ff9a66');
+    grad.addColorStop(1, '#e8703f');
+    rctx.beginPath();
+    rctx.arc(cx, cy, Rr, 0, Math.PI*2);
+    rctx.fillStyle = grad;
+    rctx.fill();
+
+    rctx.beginPath();
+    rctx.moveTo(cx-6, cy+Rr-2);
+    rctx.lineTo(cx+6, cy+Rr-2);
+    rctx.lineTo(cx, cy+Rr+10);
+    rctx.closePath();
+    rctx.fillStyle = '#c85f34';
+    rctx.fill();
+
+    rctx.beginPath();
+    rctx.moveTo(cx, cy+Rr+10);
+    rctx.quadraticCurveTo(cx-10, cy+Rr+30, cx, cy+Rr+52);
+    rctx.strokeStyle = 'rgba(255,255,255,0.6)';
+    rctx.lineWidth = 2;
+    rctx.stroke();
+  }
+
+  function drawRise(progress){
+    rctx.clearRect(0,0,rW,rH);
+    const scrollY = maxScroll * progress;
+    drawRiseBackground(scrollY);
+    const Rr = RrSmall + (RrBig-RrSmall)*progress;
+    drawRiseBalloon(Rr);
+  }
+
+  function riseLoop(now, myGen){
+    if(myGen !== riseGen) return;
+    const elapsed = now - riseStart;
+    const progress = Math.min(1, elapsed/riseDuration);
+    drawRise(easeInOutQuad(progress));
+    if(progress < 1){
+      requestAnimationFrame(n => riseLoop(n, myGen));
+    } else {
+      riseAnimating = false;
+      riseBtn.disabled = false;
+      riseBtn.textContent = '다시 띄우기';
+    }
+  }
+
+  function startRiseAnimation(){
+    if(riseAnimating) return;
+    riseAnimating = true;
+    riseStart = performance.now();
+    riseBtn.disabled = true;
+    riseBtn.textContent = '두둥실 떠오르는 중…';
+    const myGen = ++riseGen;
+    requestAnimationFrame(n => riseLoop(n, myGen));
+  }
+
+  function resetRiseScene(){
+    riseGen++;
+    riseAnimating = false;
+    riseBtn.disabled = false;
+    riseBtn.textContent = '풍선 띄우기';
+    drawRise(0);
+  }
+
+  riseBtn.addEventListener('click', startRiseAnimation);
+  drawRise(0);
+
+  replayWorkBtn.addEventListener('click', startWorkAnimation);
+
+  // 초기(정지) 상태 그림
+  drawWork(0);
+
+  const expandBtn = document.getElementById('expandBtn');
+  expandBtn.addEventListener('click', function(){
+    if(expanding || hasExpanded) return;
+    expanding = true;
+    expandStart = performance.now();
+    lastTime = null;
+    expandBtn.disabled = true;
+    expandBtn.textContent = '부풀어 오르는 중…';
+    setTimeout(()=>{
+      expandBtn.textContent = '이미 부풀었어요';
+    }, expandDuration+60);
+    setTimeout(()=>{
+      onExpandFinished();
+    }, expandDuration+80);
+  });
+
+  function resetSimulation(){
+    R = R0;
+    expanding = false;
+    hasExpanded = false;
+    lastTime = null;
+    initParticles();
+    expandBtn.disabled = false;
+    expandBtn.textContent = '펑! 순식간에 부풀리기';
+  }
+
+  // ---------- 스텝(내레이션) 진행 ----------
+  const steps = [
+    {
+      text: `실험을 시작하기 전에 먼저 전제를 하나 정하고 갈게요. 이 풍선은 앞으로 <span class="highlight">순식간에</span> 부풀어 오를 거예요. 열을 주변과 주고받으려면 <span class="highlight">시간</span>이 필요한데, 팽창이 워낙 빠르게 일어나기 때문에 그 짧은 순간 동안은 풍선 안 기체와 바깥 공기 사이에 열이 거의 오가지 못해요.`,
+      callout: `그래서 이 실험에서는 "풍선 안 기체가 주변과 열을 <b>전혀 교환하지 않는다</b>"라고 가정할게요. 이런 상태를 <b>단열(斷熼)</b>이라고 불러요.`,
+      showExpand: false
+    },
+    {
+      text: `자, 풍선 안을 들여다볼까요? 작은 알갱이들이 기체 분자예요. 분자들이 사방으로 부딪히며 움직이고 있죠. 이 분자들이 <span class="highlight">얼마나 빠르게</span> 움직이는지가 바로 온도예요. 오른쪽 온도계를 보면 지금은 꽤 높은 온도라는 걸 알 수 있어요.`,
+      callout: null,
+      showExpand: false
+    },
+    {
+      text: `이제 이 풍선을 <span class="highlight">순식간에</span> 부풀려 볼게요. 왼쪽의 버튼을 눌러보세요. 부풀어 오르는 순간, 안쪽 분자들과 온도계에 어떤 일이 일어나는지 잘 관찰해보세요.`,
+      callout: null,
+      showExpand: true
+    },
+    {
+      text: `풍선이 커지면서 온도계가 <span class="cool">아래로 내려간</span> 게 보이나요? 분자들의 움직임도 아까보다 느려지고, 색깔도 붉은색에서 파란색 쪽으로 바뀌었어요. 부피가 늘어난 것만으로 기체의 온도가 낮아진 거예요.`,
+      callout: `색이 붉을수록 분자가 빠르게(뜨겁게), 파랄수록 느리게(차갑게) 움직인다는 뜻이에요.`,
+      showExpand: false
+    },
+    {
+      text: `왜 이런 일이 벌어졌을까요? 풍선이 커지려면 안쪽 기체가 <span class="highlight">풍선 벽을 바깥으로 밀어내야</span> 해요. 벽을 밀어내는 데도 에너지가 필요한데, 이 실험에서는 열을 전혀 받지 못하니(단열) 그 에너지를 다른 곳에서 끌어올 수 없어요. 결국 분자들이 갖고 있던 <span class="highlight">운동 에너지</span>를 써서 벽을 밀어낸 거예요.`,
+      showWork: true,
+      callout: `분자가 바깥으로 팽창하는(멀어지는) 벽에 부딪히면, 가만히 있는 벽에 부딪힐 때보다 튕겨 나오는 속도가 더 느려져요. 벽에게 에너지를 나눠준 셈이죠.`,
+      showExpand: false
+    },
+    {
+      text: `정리해볼게요.`,
+      callout: null,
+      showExpand: false,
+      summary: [
+        '풍선이 아주 빠르게 팽창하면, 열이 오갈 시간이 없어 사실상 열 교환이 없는 것으로 볼 수 있어요. (단열)',
+        '기체가 팽창하려면 풍선 벽을 밀어내는 데 에너지를 써야 해요. (기체가 외부에 일을 함)',
+        '외부에서 열을 공급받지 못하므로, 그 에너지는 기체 분자의 운동 에너지에서 나가요.',
+        '분자의 평균 운동 에너지가 줄어들면, 그것이 곧 기체의 온도 하강으로 나타나요.'
+      ]
+    },
+    {
+      text: `그런데 애초에 풍선은 왜 순식간에 팽창하는 걸까요? 이런 일은 실제 하늘에서도 자주 일어나요. 공기 덩어리가 위로 <span class="highlight">두둥실 떠오를 때</span>죠. 하늘 높이 올라갈수록 그 공기 덩어리를 바깥에서 누르고 있는 <span class="highlight">대기압은 점점 낮아져요</span>. 그러면 풍선 밖에서 안으로 누르는 힘이 약해지니까, 안쪽 기체가 상대적으로 더 세게 밀어붙이면서 풍선이 저절로 부풀어 올라요. 아래 버튼을 눌러 풍선을 띄워볼까요?`,
+      callout: `이 과정도 아주 빠르게 일어나기 때문에 앞에서 배운 것과 똑같이 <b>단열 팽창</b>이에요. 그래서 하늘 위로 떠오르는 공기는 부피가 커지면서 <b>온도가 낮아져요</b>.`,
+      showExpand: false,
+      showRise: true
+    }
+  ];
+
+  let stepIndex = 0;
+  const bubbleText = document.getElementById('bubbleText');
+  const calloutBox = document.getElementById('calloutBox');
+  const pipsWrap = document.getElementById('pips');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const mainSceneEl = document.getElementById('mainScene');
+  const workSceneEl = document.getElementById('workScene');
+  const riseSceneEl = document.getElementById('riseScene');
+
+  function setActiveScene(mode){
+    mainSceneEl.style.display = (mode==='main') ? 'flex' : 'none';
+    workSceneEl.style.display = (mode==='work') ? 'flex' : 'none';
+    riseSceneEl.style.display = (mode==='rise') ? 'flex' : 'none';
+    if(mode==='work') resetWorkScene();
+    if(mode==='rise') resetRiseScene();
+  }
+
+  function buildPips(){
+    pipsWrap.innerHTML = '';
+    steps.forEach((_, i)=>{
+      const d = document.createElement('div');
+      d.className = 'pip';
+      d.addEventListener('click', ()=> goToStep(i));
+      pipsWrap.appendChild(d);
+    });
+  }
+  buildPips();
+
+  function renderStep(){
+    const s = steps[stepIndex];
+
+    if(s.summary){
+      bubbleText.innerHTML = s.text;
+      calloutBox.style.display = 'block';
+      calloutBox.innerHTML = '';
+      const ul = document.createElement('ul');
+      ul.className = 'summary-list';
+      s.summary.forEach((line, i)=>{
+        const li = document.createElement('li');
+        li.innerHTML = `<span class="summary-num">${i+1}</span><span>${line}</span>`;
+        ul.appendChild(li);
+      });
+      calloutBox.appendChild(ul);
+    } else {
+      bubbleText.innerHTML = s.text;
+      if(s.callout){
+        calloutBox.style.display = 'block';
+        calloutBox.innerHTML = s.callout;
+      } else {
+        calloutBox.style.display = 'none';
+      }
+    }
+
+    expandBtn.style.display = s.showExpand ? 'block' : 'none';
+
+    if(s.showWork){
+      setActiveScene('work');
+    } else if(s.showRise){
+      setActiveScene('rise');
+    } else {
+      setActiveScene('main');
+    }
+
+    prevBtn.disabled = (stepIndex === 0);
+    nextBtn.textContent = (stepIndex === steps.length-1) ? '처음부터 다시' : '다음 →';
+
+    Array.from(pipsWrap.children).forEach((el, i)=>{
+      el.classList.toggle('active', i===stepIndex);
+      el.classList.toggle('done', i<stepIndex);
+    });
+  }
+
+  function goToStep(i){
+    stepIndex = Math.max(0, Math.min(steps.length-1, i));
+    if(steps[stepIndex].showExpand === false){
+      // 팽창 단계가 아닌 곳으로 이동할 때는 상태를 그대로 둠 (되돌리기는 아래 별도 처리)
+    }
+    // 팽창 단계 이전으로 돌아가면 시뮬레이션 초기화
+    if(stepIndex < 2){
+      resetSimulation();
+    }
+    renderStep();
+  }
+
+  function onExpandFinished(){
+    // 팽창이 끝나면 자동으로 다음 설명으로 넘어감
+    if(stepIndex === 2){
+      stepIndex = 3;
+      renderStep();
+    }
+  }
+
+  prevBtn.addEventListener('click', ()=>{
+    goToStep(stepIndex-1);
+  });
+  nextBtn.addEventListener('click', ()=>{
+    if(stepIndex === steps.length-1){
+      stepIndex = 0;
+      resetSimulation();
+      renderStep();
+      return;
+    }
+    // 팽창 버튼이 있는 단계인데 아직 안 눌렀다면 다음으로 못 넘어가게 유도하지 않고,
+    // 그냥 진행은 허용하되 자연스러운 흐름을 위해 그대로 이동
+    stepIndex++;
+    renderStep();
+  });
+
+  renderStep();
+
+  // ---------- 탭 전환 ----------
+  const tabBtnAdiabatic = document.getElementById('tabBtnAdiabatic');
+  const tabBtnCloud = document.getElementById('tabBtnCloud');
+  const tabBtnLift = document.getElementById('tabBtnLift');
+  const panelAdiabatic = document.getElementById('panel-adiabatic');
+  const panelCloud = document.getElementById('panel-cloud');
+  const panelLift = document.getElementById('panel-lift');
+
+  function switchTab(name){
+    panelAdiabatic.style.display = (name==='adiabatic') ? 'block' : 'none';
+    panelCloud.style.display = (name==='cloud') ? 'block' : 'none';
+    panelLift.style.display = (name==='lift') ? 'block' : 'none';
+    tabBtnAdiabatic.classList.toggle('active', name==='adiabatic');
+    tabBtnCloud.classList.toggle('active', name==='cloud');
+    tabBtnLift.classList.toggle('active', name==='lift');
+    if(name==='cloud') resetCloudScene();
+    if(name==='lift') backToLiftGrid();
+  }
+  tabBtnAdiabatic.addEventListener('click', ()=> switchTab('adiabatic'));
+  tabBtnCloud.addEventListener('click', ()=> switchTab('cloud'));
+  tabBtnLift.addEventListener('click', ()=> switchTab('lift'));
+
+  // ---------- [구름생성] 탭: 상승하는 공기 덩어리 + 포화수증기량 곡선 ----------
+  const cloudCanvas = document.getElementById('cloudCanvas');
+  const cctx = cloudCanvas.getContext('2d');
+  const ccW = cloudCanvas.width, ccH = cloudCanvas.height;
+
+  const satCanvas = document.getElementById('satCurveCanvas');
+  const sctx = satCanvas.getContext('2d');
+  const scW = satCanvas.width, scH = satCanvas.height;
+
+  const cloudRiseBtn = document.getElementById('cloudRiseBtn');
+  const cloudGraphNote = document.getElementById('cloudGraphNote');
+
+  let cloudGen = 0;
+  let cloudAnimating = false;
+  let cloudStart = 0;
+  const cloudDuration = 4200;
+  const cloudMaxScroll = 620;
+
+  const parcelRSmall = 40;
+  const parcelRBig = 92;
+
+  // 포화수증기량 곡선 (예시용 지수형 곡선)
+  const curveA = 8.0;
+  const curveK = 0.044;
+  function satAmount(tempC){ return curveA * Math.exp(curveK*tempC); }
+
+  const T_MIN = -5, T_MAX = 35;
+  const W_MIN = 0, W_MAX = 34;
+  const parcelW0 = 12.5;              // 공기 덩어리의 실제 수증기량(상승 중 일정)
+  const T_START = 28;                 // 지표 부근 기온
+  const T_DEW = Math.log(parcelW0/curveA)/curveK; // 이슬점(곡선과 만나는 온도)
+
+  function graphX(t){ return 42 + (t-T_MIN)/(T_MAX-T_MIN) * (scW-64); }
+  function graphY(w){ return (scH-38) - (w-W_MIN)/(W_MAX-W_MIN) * (scH-70); }
+
+  function drawSatGraph(progress){
+    sctx.clearRect(0,0,scW,scH);
+
+    sctx.strokeStyle = '#cfd8e4';
+    sctx.lineWidth = 1.5;
+    sctx.beginPath();
+    sctx.moveTo(42, 14);
+    sctx.lineTo(42, scH-38);
+    sctx.lineTo(scW-18, scH-38);
+    sctx.stroke();
+
+    sctx.fillStyle = '#7a879c';
+    sctx.font = '11px Pretendard, sans-serif';
+    sctx.textAlign = 'center';
+    sctx.fillText('온도(℃) →', scW/2+10, scH-16);
+    sctx.save();
+    sctx.translate(14, scH/2-6);
+    sctx.rotate(-Math.PI/2);
+    sctx.fillText('포화 수증기량', 0, 0);
+    sctx.restore();
+
+    sctx.beginPath();
+    for(let t=T_MIN; t<=T_MAX; t+=1){
+      const x = graphX(t), y = graphY(satAmount(t));
+      if(t===T_MIN) sctx.moveTo(x,y); else sctx.lineTo(x,y);
+    }
+    sctx.strokeStyle = '#4a90e2';
+    sctx.lineWidth = 2.5;
+    sctx.stroke();
+    sctx.lineTo(graphX(T_MAX), scH-38);
+    sctx.lineTo(graphX(T_MIN), scH-38);
+    sctx.closePath();
+    sctx.fillStyle = 'rgba(74,144,226,0.08)';
+    sctx.fill();
+
+    const t = T_START + (T_DEW - T_START)*progress;
+    const px = graphX(t), py = graphY(parcelW0);
+
+    sctx.beginPath();
+    sctx.moveTo(graphX(T_START), py);
+    sctx.lineTo(px, py);
+    sctx.strokeStyle = '#d75f34';
+    sctx.setLineDash([4,4]);
+    sctx.lineWidth = 1.5;
+    sctx.stroke();
+    sctx.setLineDash([]);
+
+    sctx.beginPath();
+    sctx.arc(px, py, 6, 0, Math.PI*2);
+    sctx.fillStyle = progress>=1 ? '#2f6fbf' : '#d75f34';
+    sctx.fill();
+    sctx.strokeStyle = '#fff';
+    sctx.lineWidth = 2;
+    sctx.stroke();
+
+    if(progress>=1){
+      sctx.fillStyle = '#2f6fbf';
+      sctx.font = '700 12px Pretendard, sans-serif';
+      sctx.textAlign = 'left';
+      sctx.fillText('이슬점 도달!', Math.min(px+10, scW-90), py-8);
+    }
+  }
+
+  function drawCloudLayerMountain(scrollY){
+    cctx.save();
+    cctx.translate(0, scrollY*0.4);
+    cctx.fillStyle = '#b9c9dd';
+    cctx.beginPath();
+    cctx.moveTo(-10, 300);
+    cctx.lineTo(55, 55);
+    cctx.lineTo(115, 165);
+    cctx.lineTo(180, -50);
+    cctx.lineTo(245, 150);
+    cctx.lineTo(300, 30);
+    cctx.lineTo(ccW+10, 250);
+    cctx.lineTo(ccW+10, 470);
+    cctx.lineTo(-10, 470);
+    cctx.closePath();
+    cctx.fill();
+    cctx.restore();
+  }
+
+  function drawCloudLayerBuildings(scrollY){
+    cctx.save();
+    cctx.translate(0, scrollY*0.85);
+    const buildings = [
+      {x:-10, w:48, h:140, c:'#8fa2bd'},
+      {x:34,  w:34, h:200, c:'#7f93b0'},
+      {x:64,  w:42, h:110, c:'#93a6c0'},
+      {x:172, w:38, h:180, c:'#8393ae'},
+      {x:204, w:48, h:120, c:'#94a7c1'},
+      {x:246, w:36, h:220, c:'#7686a2'},
+      {x:276, w:38, h:145, c:'#8fa2bd'}
+    ];
+    buildings.forEach(b=>{
+      cctx.fillStyle = b.c;
+      cctx.fillRect(b.x, 420-b.h, b.w, b.h);
+      cctx.fillStyle = 'rgba(255,255,255,0.35)';
+      for(let wy=420-b.h+10; wy<410; wy+=16){
+        for(let wx=b.x+5; wx<b.x+b.w-5; wx+=10){
+          cctx.fillRect(wx, wy, 4, 6);
+        }
+      }
+    });
+    cctx.restore();
+  }
+
+  function drawCloudBackground(scrollY){
+    const grad = cctx.createLinearGradient(0,0,0,ccH);
+    grad.addColorStop(0, '#bcdcf5');
+    grad.addColorStop(1, '#eaf6ff');
+    cctx.fillStyle = grad;
+    cctx.fillRect(0,0,ccW,ccH);
+
+    drawCloudLayerMountain(scrollY);
+    drawCloudLayerBuildings(scrollY);
+
+    cctx.save();
+    cctx.translate(0, scrollY);
+    cctx.fillStyle = '#7bbf6a';
+    cctx.fillRect(-10, 420, ccW+20, 60);
+    cctx.restore();
+  }
+
+  function drawParcel(progress){
+    const cx = ccW/2;
+    const cyGround = 388;       // 지면에 거의 붙은 시작 높이
+    const cyTop = ccH/2 - 20;   // 상승 후 화면상 위치
+    const cy = cyGround + (cyTop - cyGround) * progress;
+    const R = parcelRSmall + (parcelRBig-parcelRSmall)*progress;
+
+    cctx.save();
+    cctx.setLineDash([7,6]);
+    cctx.lineWidth = 2.2;
+    cctx.strokeStyle = 'rgba(70,90,130,0.75)';
+    cctx.fillStyle = 'rgba(255,255,255,0.22)';
+    cctx.beginPath();
+    cctx.arc(cx, cy, R, 0, Math.PI*2);
+    cctx.fill();
+    cctx.stroke();
+    cctx.setLineDash([]);
+    cctx.restore();
+
+    if(progress>=1){
+      cctx.save();
+      cctx.fillStyle = 'rgba(255,255,255,0.92)';
+      const puffs = [[-0.5,-0.3],[0.3,-0.5],[0.55,0.1],[-0.2,0.5],[0.05,-0.05],[-0.55,0.25]];
+      puffs.forEach(p=>{
+        cctx.beginPath();
+        cctx.arc(cx+p[0]*R, cy+p[1]*R, R*0.28, 0, Math.PI*2);
+        cctx.fill();
+      });
+      cctx.restore();
+    }
+  }
+
+  function drawCloudScene(progress){
+    cctx.clearRect(0,0,ccW,ccH);
+    drawCloudBackground(cloudMaxScroll*progress);
+    drawParcel(progress);
+  }
+
+  function cloudLoop(now, myGen){
+    if(myGen !== cloudGen) return;
+    const elapsed = now - cloudStart;
+    const progress = Math.min(1, elapsed/cloudDuration);
+    const eased = easeInOutQuad(progress);
+    drawCloudScene(eased);
+    drawSatGraph(eased);
+    if(progress < 1){
+      requestAnimationFrame(n => cloudLoop(n, myGen));
+    } else {
+      cloudAnimating = false;
+      cloudRiseBtn.disabled = false;
+      cloudRiseBtn.textContent = '다시 상승';
+      cloudGraphNote.textContent = '이슬점에 도달해 수증기가 응결되며 구름이 만들어졌어요!';
+    }
+  }
+
+  function startCloudAnimation(){
+    if(cloudAnimating) return;
+    cloudAnimating = true;
+    cloudStart = performance.now();
+    cloudRiseBtn.disabled = true;
+    cloudRiseBtn.textContent = '상승 중…';
+    cloudGraphNote.textContent = '공기 덩어리가 상승하며 부피가 커지고, 온도가 내려가요.';
+    const myGen = ++cloudGen;
+    requestAnimationFrame(n => cloudLoop(n, myGen));
+  }
+
+  function resetCloudScene(){
+    cloudGen++;
+    cloudAnimating = false;
+    cloudRiseBtn.disabled = false;
+    cloudRiseBtn.textContent = '상승';
+    cloudGraphNote.textContent = '기온이 내려가면서 점이 왼쪽으로 이동해요.';
+    drawCloudScene(0);
+    drawSatGraph(0);
+  }
+
+  cloudRiseBtn.addEventListener('click', startCloudAnimation);
+  resetCloudScene();
+
+  // ---------- [공기의 상승] 탭 ----------
+  const liftGrid = document.getElementById('liftGrid');
+  const liftStage = document.getElementById('liftStage');
+  const liftCanvas = document.getElementById('liftCanvas');
+  const lctx = liftCanvas.getContext('2d');
+  const lW = liftCanvas.width, lH = liftCanvas.height;
+  const liftBackBtn = document.getElementById('liftBackBtn');
+  const liftReplayBtn = document.getElementById('liftReplayBtn');
+
+  let liftCurrentCase = null;
+  let liftGen = 0;
+  const liftDurations = { heat: 6200, mountain: 6000, lowpressure: 4200, front: 6400 };
+
+  function lerp(a,b,t){ return a + (b-a)*t; }
+  function hexToRgb(hex){
+    hex = hex.replace('#','');
+    const num = parseInt(hex,16);
+    return [(num>>16)&255, (num>>8)&255, num&255];
+  }
+  function lerpColor(hexA, hexB, t){
+    const a = hexToRgb(hexA), b = hexToRgb(hexB);
+    const r = Math.round(lerp(a[0],b[0],t));
+    const g = Math.round(lerp(a[1],b[1],t));
+    const bl = Math.round(lerp(a[2],b[2],t));
+    return `rgb(${r},${g},${bl})`;
+  }
+
+  function drawSkyGround(c, w, h, groundColor){
+    const grad = c.createLinearGradient(0,0,0,h);
+    grad.addColorStop(0, '#bcdcf5');
+    grad.addColorStop(1, '#eaf6ff');
+    c.fillStyle = grad;
+    c.fillRect(0,0,w,h);
+    c.fillStyle = groundColor || '#8bc06a';
+    c.fillRect(0, h-Math.round(h*0.11), w, Math.round(h*0.11));
+  }
+
+  function drawParcelShape(c, x, y, R, tint){
+    c.save();
+    c.setLineDash([6,5]);
+    c.lineWidth = 2;
+    c.strokeStyle = 'rgba(70,90,130,0.75)';
+    c.fillStyle = tint==='warm' ? 'rgba(255,150,90,0.4)'
+                : tint==='cold' ? 'rgba(90,150,220,0.4)'
+                : 'rgba(255,255,255,0.3)';
+    c.beginPath();
+    c.arc(x, y, R, 0, Math.PI*2);
+    c.fill();
+    c.stroke();
+    c.setLineDash([]);
+    c.restore();
+  }
+
+  function drawArrowOn(c, x1,y1,x2,y2, color){
+    c.save();
+    c.strokeStyle = color || '#d75f34';
+    c.fillStyle = color || '#d75f34';
+    c.lineWidth = 3;
+    c.lineCap = 'round';
+    c.beginPath();
+    c.moveTo(x1,y1); c.lineTo(x2,y2); c.stroke();
+    const ang = Math.atan2(y2-y1, x2-x1);
+    const hl = 9;
+    c.beginPath();
+    c.moveTo(x2,y2);
+    c.lineTo(x2-hl*Math.cos(ang-Math.PI/6), y2-hl*Math.sin(ang-Math.PI/6));
+    c.lineTo(x2-hl*Math.cos(ang+Math.PI/6), y2-hl*Math.sin(ang+Math.PI/6));
+    c.closePath();
+    c.fill();
+    c.restore();
+  }
+
+  // 1) 지표가 강하게 가열될 때
+  function drawHeat(c, w, h, progress){
+    drawSkyGround(c, w, h, '#8bc06a');
+    const groundY = h - Math.round(h*0.11);
+    const sunX = w*0.18, sunY = h*0.16;
+    const patchX = w*0.32, patchY = groundY;
+
+    c.fillStyle = '#ffcf4d';
+    c.beginPath(); c.arc(sunX, sunY, w*0.05, 0, Math.PI*2); c.fill();
+
+    // 태양빛은 가열되는 지표(주황색 부분)를 향해 모이도록 그림
+    const angToPatch = Math.atan2(patchY-sunY, patchX-sunX);
+    c.strokeStyle = 'rgba(255,180,60,0.55)';
+    c.lineWidth = 3;
+    for(let i=-2;i<=2;i++){
+      const ang = angToPatch + i*0.05;
+      const dist = Math.hypot(patchX-sunX, patchY-sunY);
+      c.beginPath();
+      c.moveTo(sunX+Math.cos(ang)*(w*0.06), sunY+Math.sin(ang)*(w*0.06));
+      c.lineTo(sunX+Math.cos(ang)*dist*0.92, sunY+Math.sin(ang)*dist*0.92);
+      c.stroke();
+    }
+
+    const heat = Math.min(1, progress/0.45);
+    c.fillStyle = lerpColor('#8bc06a', '#e0663a', heat);
+    c.beginPath();
+    c.ellipse(patchX, patchY, w*0.11, h*0.03, 0, 0, Math.PI*2);
+    c.fill();
+
+    if(progress > 0.4){
+      const riseP = (progress-0.4)/0.6;
+      const cy = lerp(patchY, h*0.1, riseP);
+      const R = lerp(w*0.045, w*0.11, riseP);
+      c.save();
+      c.setLineDash([6,5]);
+      c.lineWidth = 2;
+      c.strokeStyle = 'rgba(180,60,20,0.7)';
+      c.fillStyle = `rgba(255,${Math.round(lerp(120,220,riseP))},${Math.round(lerp(60,220,riseP))},0.4)`;
+      c.beginPath();
+      c.arc(patchX, cy, R, 0, Math.PI*2);
+      c.fill(); c.stroke();
+      c.setLineDash([]);
+      c.restore();
+    }
+
+    c.fillStyle = '#5a6780';
+    c.font = `600 ${Math.round(w*0.024)}px Pretendard, sans-serif`;
+    c.textAlign = 'center';
+    c.fillText('뜨거워진 지표 위의 공기가 가벼워져 떠오름', w/2, h*0.06);
+  }
+
+  // 2) 공기가 산을 타고 오를 때
+  function drawMountain(c, w, h, progress){
+    drawSkyGround(c, w, h, '#8bc06a');
+    const groundY = h - Math.round(h*0.11);
+    const baseX = w*0.28, peakX = w*0.70, peakY = h*0.30; // 완만한 경사
+
+    c.fillStyle = '#8a7a63';
+    c.beginPath();
+    c.moveTo(baseX, groundY);
+    c.lineTo(peakX, peakY);
+    c.lineTo(w+20, groundY);
+    c.closePath();
+    c.fill();
+
+    c.fillStyle = '#ffffff';
+    c.beginPath();
+    c.moveTo(peakX, peakY);
+    c.lineTo(peakX-w*0.035, peakY+h*0.08);
+    c.lineTo(peakX+w*0.035, peakY+h*0.08);
+    c.closePath();
+    c.fill();
+
+    const flatY = groundY - h*0.05;
+    const overY = peakY - h*0.09;
+    let x,y;
+
+    if(progress < 0.3){
+      const p = progress/0.3;
+      x = lerp(40, baseX, p);
+      y = flatY;
+    } else if(progress < 0.85){
+      const p = (progress-0.3)/0.55;
+      x = lerp(baseX, peakX, p);
+      y = lerp(flatY, peakY, p);
+    } else {
+      const p = (progress-0.85)/0.15;
+      x = lerp(peakX, peakX+w*0.07, p);
+      y = lerp(peakY, overY, p);
+    }
+    const heightFrac = Math.max(0, Math.min(1, (flatY - y)/(flatY - overY)));
+    const R = lerp(w*0.032, w*0.08, heightFrac); // 상승할수록 팽창
+    drawParcelShape(c, x, y, R);
+    drawArrowOn(c, 40, flatY, baseX-10, flatY, '#4a90e2');
+
+    if(progress > 0.85){
+      c.fillStyle = 'rgba(255,255,255,0.9)';
+      c.beginPath();
+      c.arc(peakX+w*0.015, peakY-h*0.04, w*0.03, 0, Math.PI*2);
+      c.arc(peakX-w*0.02, peakY-h*0.03, w*0.024, 0, Math.PI*2);
+      c.fill();
+    }
+
+    c.fillStyle = '#5a6780';
+    c.font = `600 ${Math.round(w*0.024)}px Pretendard, sans-serif`;
+    c.textAlign = 'center';
+    c.fillText('산비탈을 따라 밀려 올라가는 공기', w/2, h*0.06);
+  }
+
+  // 3) 기압이 낮은 곳으로 공기가 모여들 때
+  function drawLowPressure(c, w, h, progress){
+    drawSkyGround(c, w, h, '#8bc06a');
+    const groundY = h - Math.round(h*0.11);
+    const cx = w/2;
+
+    c.fillStyle = '#d75f34';
+    c.font = `700 ${Math.round(w*0.03)}px Pretendard, sans-serif`;
+    c.textAlign = 'center';
+    c.fillText('저기압', cx, groundY + h*0.07);
+
+    if(progress < 0.55){
+      const p = progress/0.55;
+      const leftX = lerp(50, cx-40, p);
+      const rightX = lerp(w-50, cx+40, p);
+      drawParcelShape(c, leftX, groundY-h*0.05, w*0.035);
+      drawParcelShape(c, rightX, groundY-h*0.05, w*0.035);
+      drawArrowOn(c, leftX+w*0.045, groundY-h*0.05, cx-w*0.05, groundY-h*0.05);
+      drawArrowOn(c, rightX-w*0.045, groundY-h*0.05, cx+w*0.05, groundY-h*0.05);
+    } else {
+      const p = (progress-0.55)/0.45;
+      const cy = lerp(groundY-h*0.05, h*0.08, p);
+      const R = lerp(w*0.045, w*0.1, p);
+      drawParcelShape(c, cx, cy, R);
+      drawArrowOn(c, cx, groundY+h*0.02, cx, cy+R+h*0.05, '#d75f34');
+    }
+
+    c.fillStyle = '#5a6780';
+    c.font = `600 ${Math.round(w*0.024)}px Pretendard, sans-serif`;
+    c.textAlign = 'center';
+    c.fillText('사방에서 모여든 공기가 갈 곳이 없어 위로 밀려 올라감', w/2, h*0.06);
+  }
+
+  // 4) 찬 공기와 따뜻한 공기가 만날 때
+  function drawFront(c, w, h, progress){
+    drawSkyGround(c, w, h, '#8bc06a');
+    const groundY = h - Math.round(h*0.11);
+
+    const R0 = w*0.055, R1 = w*0.1;
+    // 따뜻한 공기가 지면에 쉬고 있는 접촉 지점 (찬 공기 쐐기가 여기까지 파고들어와 맞닿음)
+    const contactX = w*0.58;
+    const restX = contactX + R0*0.35; // 맞닿을 때 살짝 겹치도록
+    const restY = groundY - R0*0.85;  // 지면에 거의 붙어 있는 높이
+
+    const wedgeFront = progress < 0.5
+      ? lerp(w*0.05, contactX, progress/0.5)
+      : lerp(contactX, w*0.68, (progress-0.5)/0.5);
+
+    c.fillStyle = 'rgba(90,140,210,0.55)';
+    c.beginPath();
+    c.moveTo(0, groundY);
+    c.lineTo(wedgeFront, groundY);
+    c.lineTo(wedgeFront - w*0.1, groundY - h*0.22);
+    c.lineTo(0, groundY - h*0.22);
+    c.closePath();
+    c.fill();
+    c.fillStyle = '#2f6fbf';
+    c.font = `700 ${Math.round(w*0.02)}px Pretendard, sans-serif`;
+    c.textAlign = 'left';
+    c.fillText('찬 공기', 16, groundY - h*0.02);
+
+    const pxEnd = w*0.82, pyEnd = h*0.08;
+    let px, py;
+    if(progress < 0.5){
+      // 찬 공기가 다가와 맞닿을 때까지, 따뜻한 공기는 지면에 머물러 있음
+      px = restX;
+      py = restY;
+    } else {
+      const p = (progress-0.5)/0.5;
+      px = lerp(restX, pxEnd, p);
+      py = lerp(restY, pyEnd, p);
+    }
+    const heightFrac = Math.max(0, Math.min(1, (restY-py)/(restY-pyEnd)));
+    const R = lerp(R0, R1, heightFrac); // 애초에 크게 시작해서 상승하며 더 팽창
+    drawParcelShape(c, px, py, R, 'warm');
+    c.fillStyle = '#d75f34';
+    c.font = `700 ${Math.round(w*0.02)}px Pretendard, sans-serif`;
+    c.textAlign = 'right';
+    c.fillText('따뜻한 공기', w-16, groundY - h*0.22);
+
+    c.fillStyle = '#5a6780';
+    c.font = `600 ${Math.round(w*0.024)}px Pretendard, sans-serif`;
+    c.textAlign = 'center';
+    c.fillText('무거운 찬 공기가 파고들며 따뜻한 공기를 밀어 올림', w/2, h*0.06);
+  }
+
+  const liftCaseDrawers = { heat: drawHeat, mountain: drawMountain, lowpressure: drawLowPressure, front: drawFront };
+
+  // 썸네일: 각 상황을 대표하는 정지 프레임을 미리 그려둠
+  document.querySelectorAll('.lift-card').forEach(card=>{
+    const caseName = card.dataset.case;
+    const thumbCanvas = card.querySelector('canvas');
+    const tctx = thumbCanvas.getContext('2d');
+    const tw = thumbCanvas.width, th = thumbCanvas.height;
+    const previewProgress = { heat:0.55, mountain:0.6, lowpressure:0.75, front:0.85 }[caseName] || 0.5;
+    liftCaseDrawers[caseName](tctx, tw, th, previewProgress);
+    card.addEventListener('click', ()=> playLiftCase(caseName));
+  });
+
+  let liftStart = 0;
+  function liftLoop(now, myGen){
+    if(myGen !== liftGen) return;
+    const elapsed = now - liftStart;
+    const dur = liftDurations[liftCurrentCase] || 4200;
+    const progress = Math.min(1, elapsed/dur);
+    liftCaseDrawers[liftCurrentCase](lctx, lW, lH, easeInOutQuad(progress));
+    if(progress < 1){
+      requestAnimationFrame(n => liftLoop(n, myGen));
+    } else {
+      liftReplayBtn.style.display = 'inline-block';
+    }
+  }
+
+  function playLiftCase(caseName){
+    liftCurrentCase = caseName;
+    liftGrid.style.display = 'none';
+    liftStage.style.display = 'flex';
+    liftReplayBtn.style.display = 'none';
+    liftStart = performance.now();
+    const myGen = ++liftGen;
+    requestAnimationFrame(n => liftLoop(n, myGen));
+  }
+
+  function backToLiftGrid(){
+    liftGen++; // 진행 중이던 애니메이션 중단
+    liftStage.style.display = 'none';
+    liftGrid.style.display = 'grid';
+  }
+
+  liftBackBtn.addEventListener('click', backToLiftGrid);
+  liftReplayBtn.addEventListener('click', ()=>{
+    if(liftCurrentCase) playLiftCase(liftCurrentCase);
+  });
+})();
+</script>
+</body>
+</html>
